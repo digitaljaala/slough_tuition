@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
@@ -83,6 +84,63 @@ class Parent(models.Model):
         return self.parent_name
 
 # Student Model with Parent one to many relatioship
+class DeliveryType(models.TextChoices):
+    CENTRE = "centre", "Centre"
+    HOME = "home", "Home tuition"
+
+
+class PaymentPlan(models.Model):
+    """One flexible model for ALL billing arrangements.
+
+    Centre block, home tuition, and any negotiated custom deal are all just
+    instances of this single model. There are no hard-coded pricing formulas;
+    every payment plan is configurable and every price can be overridden.
+    """
+
+    name = models.CharField(max_length=150)
+    applies_to = models.CharField(
+        max_length=20,
+        choices=DeliveryType.choices,
+        default=DeliveryType.CENTRE,
+        help_text="Which delivery type this plan applies to.",
+    )
+    sessions_per_payment = models.PositiveIntegerField(
+        default=8,
+        help_text="Sessions covered by one payment. Centre block = 8, home = 1.",
+    )
+    base_price = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=Decimal("175.00"),
+        help_text="Auto price for one payment (e.g. £175 for an 8-session block).",
+    )
+    assessment_fee = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=Decimal("25.00"),
+        help_text="One-off assessment fee charged on first payment (0 if none).",
+    )
+    custom_price = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Optional override used instead of base_price (e.g. a discount or custom deal).",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def effective_price(self):
+        """The amount actually charged for one payment of this plan."""
+        return self.custom_price if self.custom_price is not None else self.base_price
+
+    def __str__(self):
+        pricing = f"{self.effective_price():.2f}"
+        if self.custom_price is not None:
+            pricing = f"{pricing} (was {self.base_price:.2f})"
+        return f"{self.name} ({self.sessions_per_payment}/£{pricing})"
+
+
 class Student(models.Model):
     parent = models.ForeignKey(
         Parent, 
@@ -95,21 +153,68 @@ class Student(models.Model):
     school_name   = models.CharField(max_length=200, blank=True, default="")
     subjects      = models.JSONField(default=list, blank=True)
     support_needed = models.TextField(blank=True, default="")
+    # Billing foundation
+    delivery_type  = models.CharField(
+        max_length=20,
+        choices=DeliveryType.choices,
+        default=DeliveryType.CENTRE,
+        help_text="Centre tuition or home tuition — determines pricing.",
+    )
+    payment_plan = models.ForeignKey(
+        PaymentPlan,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="students",
+        help_text="The payment plan this student is billed under.",
+    )
     created_at    = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.student_name
 
 
+# ---------------------------------------------------------------------------
+# Billing foundation (Module 1)
+# ---------------------------------------------------------------------------
+
 # Invoice / Fee model
 class Invoice(models.Model):
+    class InvoiceType(models.TextChoices):
+        BLOCK = "block", "Session block"
+        SESSION = "session", "Home session"
+        ASSESSMENT = "assessment", "Assessment fee"
+
     student = models.ForeignKey(
         Student,
         on_delete=models.CASCADE,
         related_name="invoices",
     )
+    invoice_type = models.CharField(
+        max_length=20,
+        choices=InvoiceType.choices,
+        default=InvoiceType.BLOCK,
+    )
+    plan = models.ForeignKey(
+        PaymentPlan,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="invoices",
+        help_text="The payment plan this invoice was generated from (if any).",
+    )
     description = models.CharField(max_length=200)
+    # Auto-computed amount before any manual override.
+    base_amount = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal("0.00"))
+    # The amount the parent is actually charged - edit this to apply a
+    # discount / custom price. Defaults to base_amount.
     amount = models.DecimalField(max_digits=8, decimal_places=2)
+    custom_note = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        help_text="Optional note explaining a custom price / discount (e.g. 'sibling discount').",
+    )
     due_date = models.DateField()
     paid = models.BooleanField(default=False)
     paid_date = models.DateField(null=True, blank=True)
@@ -121,6 +226,11 @@ class Invoice(models.Model):
 
 # Session model
 class Session(models.Model):
+    class SessionStatus(models.TextChoices):
+        SCHEDULED = "scheduled", "Scheduled"
+        ATTENDED = "attended", "Attended"
+        MISSED = "missed", "Missed"
+
     student = models.ForeignKey(
         Student,
         on_delete=models.CASCADE,
@@ -128,11 +238,45 @@ class Session(models.Model):
     )
     subject = models.CharField(max_length=100)
     session_date = models.DateField()
+    start_time = models.TimeField(null=True, blank=True, help_text="Optional start time.")
     duration = models.DurationField()
+    status = models.CharField(
+        max_length=20,
+        choices=SessionStatus.choices,
+        default=SessionStatus.SCHEDULED,
+    )
+    tutor = models.CharField(max_length=150, blank=True, default="")
     notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["session_date", "start_time"]
 
     def __str__(self):
         return f"{self.subject} - {self.session_date}"
+
+
+# Assessment model: raw marking data that feeds into ProgressReport
+class Assessment(models.Model):
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="assessments",
+    )
+    subject = models.CharField(max_length=100)
+    assessment_date = models.DateField()
+    topics = models.CharField(max_length=200, blank=True, default="")
+    max_marks = models.PositiveIntegerField(null=True, blank=True)
+    marks = models.PositiveIntegerField(null=True, blank=True)
+    percentage = models.DecimalField(
+        max_digits=5, decimal_places=1, null=True, blank=True
+    )
+    tutor_notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["assessment_date"]
+
+    def __str__(self):
+        return f"{self.student.student_name} - {self.subject} ({self.assessment_date})"
 
 
 # Progress model

@@ -349,3 +349,79 @@ class EnrolInviteFlowTests(TestCase):
         parent.refresh_from_db()
         self.assertIsNotNone(parent.user)
         self.assertEqual(parent.user_id, claimer.pk)
+
+
+from decimal import Decimal
+
+from django.contrib.auth.models import Group, Permission
+from .models import Assessment, DeliveryType, PaymentPlan
+
+
+class BillingFoundationTests(TestCase):
+    def setUp(self):
+        self.centre_plan = PaymentPlan.objects.create(
+            name="Centre block",
+            applies_to=DeliveryType.CENTRE,
+            sessions_per_payment=8,
+            base_price=Decimal("175.00"),
+            assessment_fee=Decimal("25.00"),
+        )
+        user = User.objects.create_user(email="b@example.com", password="xPass123!")
+        self.parent = Parent.objects.create(
+            user=user,
+            parent_name="Billing Parent",
+            email="b@example.com",
+            phone_number="01753 000000",
+        )
+        self.student = Student.objects.create(
+            parent=self.parent,
+            student_name="Billing Child",
+            year_group="Year 8",
+            delivery_type=DeliveryType.CENTRE,
+            payment_plan=self.centre_plan,
+        )
+
+    def test_payment_plan_effective_price_uses_base_when_no_override(self):
+        self.assertIsNone(self.centre_plan.custom_price)
+        self.assertEqual(self.centre_plan.effective_price(), Decimal("175.00"))
+
+    def test_payment_plan_custom_price_overrides_base(self):
+        self.centre_plan.custom_price = Decimal("150.00")
+        self.centre_plan.save()
+        self.assertEqual(self.centre_plan.effective_price(), Decimal("150.00"))
+
+    def test_assessment_model_records_marks(self):
+        assessment = Assessment.objects.create(
+            student=self.student,
+            subject="Maths",
+            assessment_date=date.today(),
+            max_marks=50,
+            marks=40,
+            percentage=Decimal("80.0"),
+        )
+        self.assertEqual(assessment.percentage, Decimal("80.0"))
+        self.assertEqual(assessment.student, self.student)
+
+    def test_staff_group_lacks_billing_permissions(self):
+        staff, _ = Group.objects.get_or_create(
+            name="Staff (sessions & assessments)"
+        )
+        # Mirror the runtime seed_plans_and_roles command's grant set.
+        for codename in [
+            "add_student", "change_student",
+            "add_session", "change_session", "delete_session",
+            "add_assessment", "change_assessment", "delete_assessment",
+        ]:
+            perm = Permission.objects.filter(
+                codename=codename,
+                content_type__app_label="students",
+            ).first()
+            if perm:
+                staff.permissions.add(perm)
+        perms = set(staff.permissions.values_list("codename", flat=True))
+        self.assertIn("add_session", perms)
+        self.assertIn("add_assessment", perms)
+        # Billing / pricing / admin-management must NOT be visible to staff.
+        self.assertNotIn("change_invoice", perms)
+        self.assertNotIn("change_paymentplan", perms)
+        self.assertNotIn("add_user", perms)

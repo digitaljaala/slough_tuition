@@ -5,11 +5,13 @@ from django.utils.html import format_html
 import uuid
 
 from .models import (
+    Assessment,
     EmergencyContact,
     EnrolmentAgreement,
     Invoice,
     MedicalInfo,
     Parent,
+    PaymentPlan,
     ProgressLog,
     ProgressReport,
     Session,
@@ -56,6 +58,10 @@ class SessionInline(admin.TabularInline):
 
 class ProgressReportInline(admin.TabularInline):
     model = ProgressReport
+    extra = 0
+
+class AssessmentInline(admin.TabularInline):
+    model = Assessment
     extra = 0
 
 @admin.register(Parent)
@@ -166,6 +172,7 @@ class StudentAdmin(admin.ModelAdmin):
         InvoiceInline,
         SessionInline,
         ProgressReportInline,
+        AssessmentInline,
         EmergencyContactInline,
         MedicalInfoInline,
         EnrolmentAgreementInline,
@@ -212,4 +219,41 @@ class EnrolmentAgreementAdmin(admin.ModelAdmin):
         'agreed_at',
     )
     search_fields = ('student__student_name',)
+
+# ---- Billing foundation (Module 1) ---------------------------------------
+# Note: PaymentPlan and Invoice are deliberately NOT shown to normal staff.
+# Django only lists models a user has a 'view' permission for, and the staff
+# group only gets session/assessment permissions, so billing stays superuser-only.
+
+@admin.register(PaymentPlan)
+class PaymentPlanAdmin(admin.ModelAdmin):
+    list_display = (
+        'name',
+        'applies_to',
+        'sessions_per_payment',
+        'base_price',
+        'effective_price',
+        'assessment_fee',
+        'is_active',
+    )
+    list_filter = ('applies_to', 'is_active')
+    search_fields = ('name',)
+    list_editable = ('is_active',)
+
+    @admin.display(description="Charged")
+    def effective_price(self, obj):
+        return obj.effective_price()
+
+@admin.register(Assessment)
+class AssessmentAdmin(admin.ModelAdmin):
+    list_display = (
+        'student',
+        'subject',
+        'assessment_date',
+        'marks',
+        'percentage',
+        'topics',
+    )
+    list_filter = ('subject', 'assessment_date')
+    search_fields = ('student__student_name', 'subject', 'topics')
     
