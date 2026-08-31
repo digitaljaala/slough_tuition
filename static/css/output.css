@@ -383,6 +383,9 @@
   .hidden {
     display: none;
   }
+  .inline-block {
+    display: inline-block;
+  }
   .inline-flex {
     display: inline-flex;
   }
@@ -391,6 +394,9 @@
   }
   .h-3 {
     height: calc(var(--spacing) * 3);
+  }
+  .h-4 {
+    height: calc(var(--spacing) * 4);
   }
   .h-5 {
     height: calc(var(--spacing) * 5);
@@ -433,6 +439,9 @@
   }
   .w-3 {
     width: calc(var(--spacing) * 3);
+  }
+  .w-4 {
+    width: calc(var(--spacing) * 4);
   }
   .w-5 {
     width: calc(var(--spacing) * 5);
@@ -1318,6 +1327,9 @@
     }
     .hover\:bg-\[\#36827F\]\/10:hover {
       background-color: color-mix(in oklab, #36827F 10%, transparent);
+    }
+    .hover\:bg-\[\#36827F\]\/20:hover {
+      background-color: color-mix(in oklab, #36827F 20%, transparent);
     }
     .hover\:bg-\[\#F2E5D7\]:hover {
       background-color: #F2E5D7;
