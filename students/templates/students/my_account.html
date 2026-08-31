@@ -26,10 +26,6 @@
             <h1 class="mt-1 text-3xl font-black text-white sm:text-4xl">{{ parent.parent_name }}</h1>
             <p class="mt-1 truncate text-sm text-white/80">{{ request.user.email }}</p>
           </div>
-          <a href="{% url 'enrol' %}"
-             class="ml-auto inline-flex shrink-0 items-center gap-2 rounded-full bg-[#E63946] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-black/20 transition hover:bg-[#c92f3b]">
-            + New student enrolment
-          </a>
         </div>
       </div>
 
@@ -103,7 +99,6 @@
       </div>
       <h2 class="mt-5 text-2xl font-bold text-[#262322]">No children linked to your account yet</h2>
       <p class="mt-2 text-slate-600">Submit a tuition enquiry to link your first child.</p>
-      <a href="{% url 'enrol' %}" class="mt-6 inline-block rounded-full bg-[#E63946] px-7 py-3 font-bold text-white transition hover:bg-[#c92f3b]">Begin student enrolment</a>
     </div>
   {% endif %}
 
