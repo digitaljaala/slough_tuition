@@ -8,8 +8,8 @@
     <a href="{% url 'staff_session_create' %}" class="rounded-full bg-[#36827F] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#2a5f5d]">+ Book a session</a>
   </div>
 
-  {# ---- Filters ---- #}
-  <form method="get" class="mb-5 flex flex-wrap items-center gap-3">
+  {# ---- Filters (apply live as you type / select — no button needed) ---- #}
+  <form method="get" id="session-filters" class="mb-5 flex flex-wrap items-center gap-3">
     <input type="text" name="q" value="{{ q }}" placeholder="Search student…"
            class="w-56 rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-[#36827F] focus:ring-2 focus:ring-[#36827F]/20">
     <select name="status" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-[#36827F]">
@@ -18,8 +18,22 @@
         <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
     </select>
-    <button class="rounded-xl bg-[#262322] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-black">Filter</button>
   </form>
+
+  <script>
+    (function () {
+      const form = document.getElementById("session-filters");
+      if (!form) return;
+      const status = form.querySelector('select[name="status"]');
+      const q = form.querySelector('input[name="q"]');
+      let timer;
+      status.addEventListener("change", () => form.submit());
+      q.addEventListener("input", () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => form.submit(), 400);
+      });
+    })();
+  </script>
 
   {# ---- Table ---- #}
   <div class="overflow-hidden rounded-2xl border border-[#262322]/10 bg-white shadow-sm">

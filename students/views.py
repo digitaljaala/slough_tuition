@@ -24,6 +24,16 @@ from .forms import (
 
 
 # Student and Parent views
+def _display_name(user):
+    """Address people by their full name rather than their email, falling
+    back to the email (or username) only when no profile name exists."""
+    if user.is_authenticated:
+        parent = Parent.objects.filter(user=user).first()
+        if parent and parent.parent_name.strip():
+            return parent.parent_name.strip()
+    return getattr(user, "email", None) or str(user)
+
+
 def register_student(request):
     parent_form = ParentForm()
     student_form = StudentForm()
@@ -76,7 +86,7 @@ def register(request):
             login(request, user)
             messages.success(
                 request,
-                f"Welcome, {user.email}! Your account has been created.",
+                f"Welcome, {_display_name(user)}! Your account has been created.",
             )
             return redirect(_safe_next(request, reverse("home")))
     else:
@@ -97,10 +107,11 @@ def login_view(request):
     if request.method == "POST":
         form = LoginForm(request=request, data=request.POST)
         if form.is_valid():
-            login(request, form.get_user())
+            user = form.get_user()
+            login(request, user)
             messages.success(
                 request,
-                f"Welcome back, {form.get_user().email}!",
+                f"Welcome back, {_display_name(user)}!",
             )
             return redirect(_safe_next(request, reverse("home")))
     return render(
