@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import AssessmentForm, SessionForm
-from .models import Assessment, Session, Student
+from .models import Assessment, DeliveryType, Session, Student
 
 
 def _is_console_user(user):
@@ -58,6 +58,29 @@ def dashboard(request):
 
 
 @_console_required
+def booking_hub(request):
+    """Sub-module 1: bookable list — every student with their plan and the
+    number of sessions left in their current block, so staff can book at a
+    glance. Centre students show a finite remaining count; home tuition is
+    billed per session and shows unlimited."""
+    students = Student.objects.select_related("parent", "payment_plan").order_by(
+        "student_name"
+    )
+    low_count = sum(
+        1 for s in students if s.remaining_sessions is not None and s.remaining_sessions <= 2
+    )
+    return render(
+        request,
+        "staff/booking_hub.html",
+        {
+            "students": students,
+            "low_count": low_count,
+            "console_active": "booking",
+        },
+    )
+
+
+@_console_required
 def session_list(request):
     q = request.GET.get("q", "")
     status_filter = request.GET.get("status", "")
@@ -84,11 +107,16 @@ def session_list(request):
 
 @_console_required
 def session_create(request):
-    form = SessionForm()
+    initial = {}
+    student_id = request.GET.get("student")
+    if student_id:
+        initial["student"] = student_id
+    form = SessionForm(initial=initial)
     if request.method == "POST":
         form = SessionForm(request.POST)
         if form.is_valid():
             session = form.save()
+            _consume_block_session(session)
             messages.success(
                 request,
                 f"Session booked for {session.student.student_name} on "
@@ -104,6 +132,16 @@ def session_create(request):
             "console_active": "sessions",
         },
     )
+
+
+def _consume_block_session(session):
+    """Sub-module 2: centre students pay in fixed blocks, so each booked
+    session consumes one session from the current block. Home tuition is billed
+    per session (no fixed block) and is left untouched."""
+    student = session.student
+    if student.delivery_type == DeliveryType.CENTRE:
+        student.sessions_used_in_block += 1
+        student.save(update_fields=["sessions_used_in_block"])
 
 
 @_console_required

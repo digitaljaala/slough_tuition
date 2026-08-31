@@ -15,3 +15,31 @@
   host, port, username, password, use_tls, timeout (lowercase).
 - Auto-switch: if `EMAIL_HOST_USER` AND `EMAIL_HOST_PASSWORD` set in env -> SMTP(IONOS),
   else -> console backend. `DEFAULT_FROM_EMAIL` = the mailbox address when SMTP on.
+
+## Roadmap (refined into small, independently-verifiable sub-modules)
+Each line = one commit-ready unit of work. Mark [x] when done.
+### Session booking
+- [x] 1. Bookable list UI — staff sees every student + payment plan + sessions remaining (`/staff/bookings/`, `staff/booking_hub.html`).
+- [x] 2. Centre 8-block consumption — booking a centre session increments `Student.sessions_used_in_block`, reducing `remaining_sessions`; home = per-session/unlimited.
+- [ ] 3. Home per-session billing — booking a home session creates a per-session invoice line.
+- [ ] 4. Custom/override deals — booking against a manually-priced plan / custom_price.
+- [ ] 5. Block renewal / reset — when a block is fully consumed, prompt to charge a new block and reset `sessions_used_in_block`.
+### Assessment + PDF
+- [ ] 6. Assessment polish — edit/update, save history view.
+- [ ] 7. Mobile-friendly PDF report (weasyprint or reportlab).
+- [ ] 8. Email PDF to parent (attachment).
+### Billing (superuser only)
+- [ ] 9. Invoices list — filter by plan/status, outstanding balances.
+- [ ] 10. Invoice generation from consumed sessions.
+- [ ] 11. Payment recording — mark paid/partial, plan create/override.
+- [ ] 12. Reports / export — CSV + summary.
+### Parent portal
+- [ ] 13. Parent sees own invoice / assessment history.
+
+## Work state
+- Module 1 (billing foundation): DONE & pushed.
+- Module 2 (staff console: sessions/assessments/students): DONE, browser-verified, pushed.
+- Sub-modules 1-2 (bookable list UI + centre block consumption): DONE (36 tests), needs push.
+- 36 tests passing. Tailwind compiled after template changes.
+- .env holds PLACEHOLDER email creds (console fallback mode until real IONOS creds filled in).
+- DB: Postgres `slough_tuition` @ localhost; superuser admin@example.com; staff staff@example.com / StaffPass123!.

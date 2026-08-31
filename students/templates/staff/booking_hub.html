@@ -1,0 +1,70 @@
+{% extends 'staff/base.html' %}
+{% block page_title %}Book a session{% endblock %}
+{% block title %}Book a session | Staff Console{% endblock %}
+
+{% block content %}
+  <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <p class="text-sm text-slate-600">
+      Pick a student to book a session. Centre students show how many sessions
+      are left in their current block; home tuition is billed per session.
+    </p>
+    {% if low_count %}
+      <span class="rounded-full bg-amber-100 px-4 py-2 text-xs font-bold text-amber-700">
+        ⚠ {{ low_count }} student{{ low_count|pluralize }} running low on block sessions
+      </span>
+    {% endif %}
+  </div>
+
+  <div class="overflow-hidden rounded-2xl border border-[#262322]/10 bg-white shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[720px] text-left text-sm">
+        <thead class="bg-[#F2E5D7]/60 text-xs uppercase tracking-wide text-slate-500">
+          <tr>
+            <th class="px-5 py-3 font-bold">Student</th>
+            <th class="px-5 py-3 font-bold">Delivery</th>
+            <th class="px-5 py-3 font-bold">Payment plan</th>
+            <th class="px-5 py-3 font-bold">Block</th>
+            <th class="px-5 py-3 font-bold">Remaining</th>
+            <th class="px-5 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[#262322]/5">
+          {% for stu in students %}
+            <tr class="hover:bg-[#F2E5D7]/30">
+              <td class="px-5 py-3">
+                <p class="font-bold">{{ stu.student_name }}</p>
+                <p class="text-xs text-slate-500">{{ stu.year_group }}</p>
+              </td>
+              <td class="px-5 py-3">
+                <span class="rounded-full bg-[#36827F]/10 px-3 py-1 text-xs font-bold text-[#36827F]">{{ stu.get_delivery_type_display }}</span>
+              </td>
+              <td class="px-5 py-3 text-slate-600">{{ stu.payment_plan.name|default:"No plan" }}</td>
+              <td class="px-5 py-3 text-slate-600">
+                {% if stu.delivery_type == 'home' %}per session{% else %}{{ stu.block_size }} sessions{% endif %}
+              </td>
+              <td class="px-5 py-3">
+                {% if stu.remaining_sessions is None %}
+                  <span class="text-slate-500">Unlimited</span>
+                {% elif stu.remaining_sessions <= 2 %}
+                  <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">{{ stu.remaining_sessions }} left</span>
+                {% elif stu.remaining_sessions == 0 %}
+                  <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">Block used up</span>
+                {% else %}
+                  <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">{{ stu.remaining_sessions }} left</span>
+                {% endif %}
+              </td>
+              <td class="px-5 py-3 text-right">
+                <a href="{% url 'staff_session_create' %}?student={{ stu.pk }}"
+                   class="rounded-full bg-[#36827F] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#2a5f5d]">
+                  + Book
+                </a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td class="px-5 py-8 text-center text-slate-500" colspan="6">No students yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

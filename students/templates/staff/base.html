@@ -28,6 +28,10 @@
              class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition {% if console_active == 'dashboard' %}bg-white/15 text-white{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">
             <span class="text-base">📊</span> Overview
           </a>
+          <a href="{% url 'staff_booking_hub' %}"
+             class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition {% if console_active == 'booking' %}bg-white/15 text-white{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">
+            <span class="text-base">📅</span> Book a session
+          </a>
           <a href="{% url 'staff_session_list' %}"
              class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition {% if console_active == 'sessions' %}bg-white/15 text-white{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">
             <span class="text-base">🗓️</span> Sessions
@@ -64,6 +68,7 @@
         </div>
         <nav class="flex-1 space-y-1 px-3">
           <a href="{% url 'staff_dashboard' %}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold {% if console_active == 'dashboard' %}bg-white/15{% else %}text-white/70{% endif %}"><span>📊</span> Overview</a>
+          <a href="{% url 'staff_booking_hub' %}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold {% if console_active == 'booking' %}bg-white/15{% else %}text-white/70{% endif %}"><span>📅</span> Book a session</a>
           <a href="{% url 'staff_session_list' %}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold {% if console_active == 'sessions' %}bg-white/15{% else %}text-white/70{% endif %}"><span>🗓️</span> Sessions</a>
           <a href="{% url 'staff_assessment_list' %}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold {% if console_active == 'assessments' %}bg-white/15{% else %}text-white/70{% endif %}"><span>✅</span> Assessments</a>
           <a href="{% url 'staff_student_list' %}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold {% if console_active == 'students' %}bg-white/15{% else %}text-white/70{% endif %}"><span>🎓</span> Students</a>

@@ -503,6 +503,9 @@
   .min-w-\[640px\] {
     min-width: 640px;
   }
+  .min-w-\[720px\] {
+    min-width: 720px;
+  }
   .flex-1 {
     flex: 1;
   }

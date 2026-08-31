@@ -489,3 +489,106 @@ class StaffConsoleTests(TestCase):
         session = Session.objects.get()
         self.assertEqual(session.status, "scheduled")
         self.assertEqual(session.start_time, dtime(16, 0))
+
+
+class BookingBlockTests(TestCase):
+    """Sub-modules 1 & 2: bookable list UI + centre 8-block consumption."""
+
+    def setUp(self):
+        self.staff_group, _ = Group.objects.get_or_create(
+            name="Staff (sessions & assessments)"
+        )
+        self.staff = User.objects.create_user(
+            email="staff@example.com", password="StaffPass123!"
+        )
+        self.staff.groups.add(self.staff_group)
+
+        user = User.objects.create_user(email="p@example.com", password="xPass123!")
+        self.parent = Parent.objects.create(
+            user=user,
+            parent_name="Booking Parent",
+            email="p@example.com",
+            phone_number="01753 000000",
+        )
+        self.centre_plan = PaymentPlan.objects.create(
+            name="Centre block",
+            applies_to=DeliveryType.CENTRE,
+            sessions_per_payment=8,
+            base_price=Decimal("175.00"),
+        )
+        self.home_plan = PaymentPlan.objects.create(
+            name="Home per session",
+            applies_to=DeliveryType.HOME,
+            sessions_per_payment=1,
+            base_price=Decimal("30.00"),
+        )
+        self.centre_student = Student.objects.create(
+            parent=self.parent,
+            student_name="Centre Kid",
+            year_group="Year 8",
+            delivery_type=DeliveryType.CENTRE,
+            payment_plan=self.centre_plan,
+        )
+        self.home_student = Student.objects.create(
+            parent=self.parent,
+            student_name="Home Kid",
+            year_group="Year 9",
+            delivery_type=DeliveryType.HOME,
+            payment_plan=self.home_plan,
+        )
+        self.client.login(username="staff@example.com", password="StaffPass123!")
+
+    def test_remaining_sessions_starts_full(self):
+        self.assertEqual(self.centre_student.remaining_sessions, 8)
+
+    def test_home_student_has_unlimited_remaining(self):
+        self.assertIsNone(self.home_student.remaining_sessions)
+
+    def test_booking_hub_renders_with_remaining_counts(self):
+        response = self.client.get(reverse("staff_booking_hub"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "staff/booking_hub.html")
+        self.assertContains(response, "Centre Kid")
+        self.assertContains(response, "Home Kid")
+        self.assertContains(response, "Unlimited")
+        self.assertContains(response, "8 left")
+
+    def test_session_create_consumes_one_centre_block_session(self):
+        self.client.post(
+            reverse("staff_session_create"),
+            {
+                "student": self.centre_student.pk,
+                "subject": "gcse_maths",
+                "session_date": "2026-09-10",
+                "start_time": "16:00",
+                "duration": "01:00",
+                "status": "scheduled",
+            },
+        )
+        self.centre_student.refresh_from_db()
+        self.assertEqual(self.centre_student.sessions_used_in_block, 1)
+        self.assertEqual(self.centre_student.remaining_sessions, 7)
+
+    def test_session_create_does_not_consume_home_block(self):
+        self.client.post(
+            reverse("staff_session_create"),
+            {
+                "student": self.home_student.pk,
+                "subject": "11_plus",
+                "session_date": "2026-09-10",
+                "start_time": "16:00",
+                "duration": "01:00",
+                "status": "scheduled",
+            },
+        )
+        self.home_student.refresh_from_db()
+        self.assertEqual(self.home_student.sessions_used_in_block, 0)
+
+    def test_session_create_prefills_student_from_query_param(self):
+        response = self.client.get(
+            reverse("staff_session_create") + f"?student={self.centre_student.pk}"
+        )
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        # The chosen student's option should be marked selected.
+        self.assertIn(f'<option value="{self.centre_student.pk}" selected', html)

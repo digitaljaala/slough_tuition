@@ -176,10 +176,32 @@ class Student(models.Model):
         related_name="students",
         help_text="The payment plan this student is billed under.",
     )
+    # Number of sessions already consumed within the student's current block.
+    # Reset to 0 when a new block is paid for (billing module).
+    sessions_used_in_block = models.PositiveIntegerField(default=0)
     created_at    = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.student_name
+
+    @property
+    def block_size(self):
+        """Sessions covered by one payment for this student."""
+        if self.payment_plan:
+            return self.payment_plan.sessions_per_payment
+        return 8
+
+    @property
+    def remaining_sessions(self):
+        """How many sessions remain in the current block.
+
+        Centre tuition is sold in fixed blocks, so consumption is limited. Home
+        tuition is billed per session and has no fixed block, so it is unlimited.
+        Returns None (meaning unlimited) for home tuition.
+        """
+        if self.delivery_type != DeliveryType.CENTRE:
+            return None
+        return max(self.block_size - self.sessions_used_in_block, 0)
 
 
 # ---------------------------------------------------------------------------
