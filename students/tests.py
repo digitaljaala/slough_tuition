@@ -425,3 +425,67 @@ class BillingFoundationTests(TestCase):
         self.assertNotIn("change_invoice", perms)
         self.assertNotIn("change_paymentplan", perms)
         self.assertNotIn("add_user", perms)
+
+
+from datetime import time as dtime
+from django.contrib.auth.models import Group
+
+
+class StaffConsoleTests(TestCase):
+    def setUp(self):
+        self.staff_group, _ = Group.objects.get_or_create(
+            name="Staff (sessions & assessments)"
+        )
+        self.staff = User.objects.create_user(
+            email="staff@example.com", password="StaffPass123!"
+        )
+        self.staff.groups.add(self.staff_group)
+
+        user = User.objects.create_user(email="p@example.com", password="xPass123!")
+        self.parent = Parent.objects.create(
+            user=user,
+            parent_name="Console Parent",
+            email="p@example.com",
+            phone_number="01753 000000",
+        )
+        self.student = Student.objects.create(
+            parent=self.parent,
+            student_name="Console Child",
+            year_group="Year 9",
+        )
+
+    def test_anonymous_redirected_to_login(self):
+        response = self.client.get(reverse("staff_dashboard"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login", response.url)
+
+    def test_staff_sees_dashboard(self):
+        self.client.login(username="staff@example.com", password="StaffPass123!")
+        response = self.client.get(reverse("staff_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "staff/dashboard.html")
+
+    def test_regular_user_cannot_access_console(self):
+        self.client.login(username="p@example.com", password="xPass123!")
+        response = self.client.get(reverse("staff_dashboard"))
+        self.assertEqual(response.status_code, 302)
+
+    def test_staff_can_create_session_via_console(self):
+        self.client.login(username="staff@example.com", password="StaffPass123!")
+        response = self.client.post(
+            reverse("staff_session_create"),
+            {
+                "student": self.student.pk,
+                "subject": "gcse_maths",
+                "session_date": "2026-09-05",
+                "start_time": "16:00",
+                "duration": "01:00",
+                "status": "scheduled",
+                "notes": "Intro session",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Session.objects.count(), 1)
+        session = Session.objects.get()
+        self.assertEqual(session.status, "scheduled")
+        self.assertEqual(session.start_time, dtime(16, 0))

@@ -1,0 +1,77 @@
+{% extends 'staff/base.html' %}
+{% block page_title %}Overview{% endblock %}
+{% block title %}Overview | Staff Console{% endblock %}
+
+{% block content %}
+  <p class="mb-6 text-sm text-slate-600">Welcome back — here's what's happening today.</p>
+
+  {# ---- Stat cards ---- #}
+  <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div class="rounded-2xl border border-[#262322]/10 bg-white p-5 shadow-sm">
+      <p class="text-3xl font-black text-[#36827F]">{{ scheduled_count }}</p>
+      <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Scheduled sessions</p>
+    </div>
+    <div class="rounded-2xl border border-[#262322]/10 bg-white p-5 shadow-sm">
+      <p class="text-3xl font-black text-emerald-600">{{ attended_count }}</p>
+      <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Attended</p>
+    </div>
+    <div class="rounded-2xl border border-[#262322]/10 bg-white p-5 shadow-sm">
+      <p class="text-3xl font-black text-amber-600">{{ assessments_count }}</p>
+      <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Assessments logged</p>
+    </div>
+    <div class="rounded-2xl border border-[#262322]/10 bg-white p-5 shadow-sm">
+      <p class="text-3xl font-black text-[#262322]">{{ students_count }}</p>
+      <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Students</p>
+    </div>
+  </div>
+
+  <div class="mt-8 grid gap-6 lg:grid-cols-2">
+    {# ---- Today's sessions ---- #}
+    <section>
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-lg font-black">Today's sessions</h2>
+        <span class="rounded-full bg-[#36827F]/10 px-3 py-1 text-xs font-bold text-[#36827F]">{{ today|date:"D d M" }}</span>
+      </div>
+      <div class="space-y-3">
+        {% for s in sessions_today %}
+          <div class="flex items-center gap-3 rounded-2xl border border-[#262322]/10 bg-white p-4 shadow-sm">
+            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#36827F]/10 font-black text-[#36827F]">{{ s.student.student_name|slice:":1"|upper }}</span>
+            <div class="min-w-0 flex-1">
+              <p class="truncate font-bold">{{ s.student.student_name }}</p>
+              <p class="text-sm text-slate-500">{{ s.subject }} · {{ s.start_time|time:"H:i"|default:"—" }}</p>
+            </div>
+            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{{ s.get_status_display }}</span>
+          </div>
+        {% empty %}
+          <div class="rounded-2xl border border-dashed border-[#262322]/20 bg-white p-6 text-center text-sm text-slate-500">
+            No sessions scheduled today.
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    {# ---- Upcoming ---- #}
+    <section>
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-lg font-black">Next 7 days</h2>
+        <a href="{% url 'staff_session_create' %}" class="rounded-full bg-[#36827F] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#2a5f5d]">+ Book session</a>
+      </div>
+      <div class="space-y-3">
+        {% for s in upcoming %}
+          <div class="flex items-center gap-3 rounded-2xl border border-[#262322]/10 bg-white p-4 shadow-sm">
+            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#36827F]/10 font-black text-[#36827F]">{{ s.student.student_name|slice:":1"|upper }}</span>
+            <div class="min-w-0 flex-1">
+              <p class="truncate font-bold">{{ s.student.student_name }}</p>
+              <p class="text-sm text-slate-500">{{ s.subject }} · {{ s.session_date|date:"D d M" }} {{ s.start_time|time:"H:i"|default:"" }}</p>
+            </div>
+            <a href="{% url 'staff_session_edit' s.pk %}" class="text-xs font-bold text-[#36827F] hover:underline">Edit</a>
+          </div>
+        {% empty %}
+          <div class="rounded-2xl border border-dashed border-[#262322]/20 bg-white p-6 text-center text-sm text-slate-500">
+            Nothing booked for the next 7 days.
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+{% endblock %}

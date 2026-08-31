@@ -1,0 +1,67 @@
+{% extends 'staff/base.html' %}
+{% block page_title %}Sessions{% endblock %}
+{% block title %}Sessions | Staff Console{% endblock %}
+
+{% block content %}
+  <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <p class="text-sm text-slate-600">Book and manage tuition sessions.</p>
+    <a href="{% url 'staff_session_create' %}" class="rounded-full bg-[#36827F] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#2a5f5d]">+ Book a session</a>
+  </div>
+
+  {# ---- Filters ---- #}
+  <form method="get" class="mb-5 flex flex-wrap items-center gap-3">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search student…"
+           class="w-56 rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-[#36827F] focus:ring-2 focus:ring-[#36827F]/20">
+    <select name="status" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-[#36827F]">
+      <option value="">All statuses</option>
+      {% for value, label in status_choices %}
+        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="rounded-xl bg-[#262322] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-black">Filter</button>
+  </form>
+
+  {# ---- Table ---- #}
+  <div class="overflow-hidden rounded-2xl border border-[#262322]/10 bg-white shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[640px] text-left text-sm">
+        <thead class="bg-[#F2E5D7]/60 text-xs uppercase tracking-wide text-slate-500">
+          <tr>
+            <th class="px-5 py-3 font-bold">Student</th>
+            <th class="px-5 py-3 font-bold">Subject</th>
+            <th class="px-5 py-3 font-bold">Date</th>
+            <th class="px-5 py-3 font-bold">Time</th>
+            <th class="px-5 py-3 font-bold">Tutor</th>
+            <th class="px-5 py-3 font-bold">Status</th>
+            <th class="px-5 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[#262322]/5">
+          {% for s in sessions %}
+            <tr class="hover:bg-[#F2E5D7]/30">
+              <td class="px-5 py-3 font-bold">{{ s.student.student_name }}</td>
+              <td class="px-5 py-3 text-slate-600">{{ s.subject }}</td>
+              <td class="px-5 py-3 text-slate-600">{{ s.session_date|date:"d M Y" }}</td>
+              <td class="px-5 py-3 text-slate-600">{{ s.start_time|time:"H:i"|default:"—" }}</td>
+              <td class="px-5 py-3 text-slate-600">{{ s.tutor|default:"—" }}</td>
+              <td class="px-5 py-3">
+                {% if s.status == 'attended' %}
+                  <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">Attended</span>
+                {% elif s.status == 'missed' %}
+                  <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">Missed</span>
+                {% else %}
+                  <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">Scheduled</span>
+                {% endif %}
+              </td>
+              <td class="px-5 py-3 text-right">
+                <a href="{% url 'staff_session_edit' s.pk %}" class="text-xs font-bold text-[#36827F] hover:underline">Edit</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td class="px-5 py-8 text-center text-slate-500" colspan="7">No sessions found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

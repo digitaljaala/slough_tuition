@@ -1,4 +1,6 @@
 import re
+from datetime import timedelta
+from decimal import Decimal
 
 from django import forms
 from django.contrib.auth import get_user_model
@@ -8,10 +10,12 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from .models import (
+    Assessment,
     EmergencyContact,
     EnrolmentAgreement,
     MedicalInfo,
     Parent,
+    Session,
     Student,
 )
 
@@ -419,3 +423,140 @@ class LoginForm(AuthenticationForm):
                 autocomplete="current-password",
             )
         )
+
+
+# ---------------------------------------------------------------------------
+# Staff console forms (sessions & assessments only)
+# ---------------------------------------------------------------------------
+
+class SessionForm(StyledModelForm):
+    subject = forms.ChoiceField(
+        choices=SUBJECT_CHOICES,
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
+
+    class Meta:
+        model = Session
+        fields = (
+            "student",
+            "subject",
+            "session_date",
+            "start_time",
+            "duration",
+            "tutor",
+            "status",
+            "notes",
+        )
+        widgets = {
+            "student": forms.Select(attrs={"class": INPUT_CLASS}),
+            "session_date": forms.DateInput(
+                format="%Y-%m-%d",
+                attrs={"class": INPUT_CLASS, "type": "date"},
+            ),
+            "start_time": forms.TimeInput(
+                format="%H:%M",
+                attrs={"class": INPUT_CLASS, "type": "time"},
+            ),
+            "duration": forms.TimeInput(
+                format="%H:%M",
+                attrs={
+                    "class": INPUT_CLASS,
+                    "type": "time",
+                    "step": "1800",
+                },
+            ),
+            "tutor": forms.TextInput(
+                attrs={"class": INPUT_CLASS, "placeholder": "Tutor name (optional)"}
+            ),
+            "status": forms.Select(attrs={"class": INPUT_CLASS}),
+            "notes": forms.Textarea(
+                attrs={
+                    "class": INPUT_CLASS,
+                    "rows": 3,
+                    "placeholder": "Topics covered, observations (optional)",
+                }
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["session_date"].input_formats = ["%Y-%m-%d"]
+        # duration is stored as timedelta; expose as HH:MM via TimeInput.
+        if self.instance.pk and self.instance.duration:
+            total = int(self.instance.duration.total_seconds())
+            hh, mm = divmod(total // 60, 60)
+            self.initial["duration"] = f"{hh:02d}:{mm:02d}"
+        self.fields["tutor"].required = False
+        self.fields["notes"].required = False
+        self.fields["start_time"].required = False
+
+    def clean_duration(self):
+        value = self.cleaned_data.get("duration")
+        if not value:
+            return timedelta(hours=1)
+        # Django's DurationField may already have coerced "HH:MM" into a
+        # timedelta before this cleaner runs.
+        if isinstance(value, timedelta):
+            return value
+        if isinstance(value, str):
+            hh, mm = map(int, value.split(":"))
+            return timedelta(hours=hh, minutes=mm)
+        # A time object was submitted (web form TimeInput -> time).
+        return timedelta(
+            hours=value.hour, minutes=value.minute, seconds=value.second
+        )
+
+
+class AssessmentForm(StyledModelForm):
+    subject = forms.ChoiceField(
+        choices=SUBJECT_CHOICES,
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
+
+    class Meta:
+        model = Assessment
+        fields = (
+            "student",
+            "subject",
+            "assessment_date",
+            "topics",
+            "max_marks",
+            "marks",
+            "tutor_notes",
+        )
+        widgets = {
+            "student": forms.Select(attrs={"class": INPUT_CLASS}),
+            "assessment_date": forms.DateInput(
+                format="%Y-%m-%d",
+                attrs={"class": INPUT_CLASS, "type": "date"},
+            ),
+            "topics": forms.TextInput(
+                attrs={"class": INPUT_CLASS, "placeholder": "Topics covered (optional)"}
+            ),
+            "max_marks": forms.NumberInput(attrs={"class": INPUT_CLASS}),
+            "marks": forms.NumberInput(attrs={"class": INPUT_CLASS}),
+            "tutor_notes": forms.Textarea(
+                attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Tutor notes"}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["assessment_date"].input_formats = ["%Y-%m-%d"]
+        self.fields["assessment_date"].initial = timezone.localdate
+        self.fields["topics"].required = False
+        self.fields["max_marks"].required = False
+        self.fields["marks"].required = False
+        self.fields["tutor_notes"].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        marks = cleaned.get("marks")
+        max_marks = cleaned.get("max_marks")
+        if marks and max_marks and marks > max_marks:
+            self.add_error(
+                "marks", "Marks cannot exceed the maximum marks."
+            )
+        if marks is not None and max_marks:
+            cleaned["percentage"] = (Decimal(marks) / Decimal(max_marks)) * 100
+        return cleaned

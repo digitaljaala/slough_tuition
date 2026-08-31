@@ -1,0 +1,38 @@
+{% extends 'staff/base.html' %}
+{% block page_title %}Students{% endblock %}
+{% block title %}Students | Staff Console{% endblock %}
+
+{% block content %}
+  <p class="mb-5 text-sm text-slate-600">View enrolled students and the plan they're billed under.</p>
+
+  <div class="overflow-hidden rounded-2xl border border-[#262322]/10 bg-white shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[640px] text-left text-sm">
+        <thead class="bg-[#F2E5D7]/60 text-xs uppercase tracking-wide text-slate-500">
+          <tr>
+            <th class="px-5 py-3 font-bold">Student</th>
+            <th class="px-5 py-3 font-bold">Year</th>
+            <th class="px-5 py-3 font-bold">Delivery</th>
+            <th class="px-5 py-3 font-bold">Payment plan</th>
+            <th class="px-5 py-3 font-bold">Parent</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[#262322]/5">
+          {% for stu in students %}
+            <tr class="hover:bg-[#F2E5D7]/30">
+              <td class="px-5 py-3 font-bold">{{ stu.student_name }}</td>
+              <td class="px-5 py-3 text-slate-600">{{ stu.year_group }}</td>
+              <td class="px-5 py-3">
+                <span class="rounded-full bg-[#36827F]/10 px-3 py-1 text-xs font-bold text-[#36827F]">{{ stu.get_delivery_type_display }}</span>
+              </td>
+              <td class="px-5 py-3 text-slate-600">{{ stu.payment_plan.name|default:"—" }}</td>
+              <td class="px-5 py-3 text-slate-600">{{ stu.parent.parent_name }}</td>
+            </tr>
+          {% empty %}
+            <tr><td class="px-5 py-8 text-center text-slate-500" colspan="5">No students yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

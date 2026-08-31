@@ -47,7 +47,15 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
-    
+
+    @property
+    def is_console_staff(self):
+        """Staff (or superuser) who may use the bespoke staff console."""
+        if self.is_superuser:
+            return True
+        return self.groups.filter(
+            name="Staff (sessions & assessments)"
+        ).exists()
 
 
 # Parent Model 
