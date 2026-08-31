@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import AssessmentForm, SessionForm
-from .models import Assessment, DeliveryType, Session, Student
+from .models import Assessment, DeliveryType, Invoice, Session, Student
 
 
 def _is_console_user(user):
@@ -116,7 +116,7 @@ def session_create(request):
         form = SessionForm(request.POST)
         if form.is_valid():
             session = form.save()
-            _consume_block_session(session)
+            _apply_billing_for_session(session)
             messages.success(
                 request,
                 f"Session booked for {session.student.student_name} on "
@@ -134,14 +134,20 @@ def session_create(request):
     )
 
 
-def _consume_block_session(session):
-    """Sub-module 2: centre students pay in fixed blocks, so each booked
-    session consumes one session from the current block. Home tuition is billed
-    per session (no fixed block) and is left untouched."""
+def _apply_billing_for_session(session):
+    """Apply billing when a session is booked.
+
+    Sub-module 2: centre students pay in fixed blocks, so each booked session
+    consumes one session from the current block.
+    Sub-module 3: home tuition is billed per session, so booking creates a
+    per-session invoice line (with the one-off assessment fee if it's the
+    student's first invoice)."""
     student = session.student
     if student.delivery_type == DeliveryType.CENTRE:
         student.sessions_used_in_block += 1
         student.save(update_fields=["sessions_used_in_block"])
+    elif student.delivery_type == DeliveryType.HOME:
+        Invoice.for_home_session(session)
 
 
 @_console_required

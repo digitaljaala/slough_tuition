@@ -592,3 +592,56 @@ class BookingBlockTests(TestCase):
         html = response.content.decode()
         # The chosen student's option should be marked selected.
         self.assertIn(f'<option value="{self.centre_student.pk}" selected', html)
+
+    def test_home_session_creates_per_session_invoice(self):
+        self.client.post(
+            reverse("staff_session_create"),
+            {
+                "student": self.home_student.pk,
+                "subject": "11_plus",
+                "session_date": "2026-09-12",
+                "start_time": "15:00",
+                "duration": "01:00",
+                "status": "scheduled",
+            },
+        )
+        invoice = Invoice.objects.get(student=self.home_student)
+        self.assertEqual(invoice.invoice_type, Invoice.InvoiceType.SESSION)
+        # First-ever invoice for this student -> session rate + one-off
+        # assessment fee (£30 session + £25 assessment = £55).
+        self.assertEqual(invoice.amount, Decimal("55.00"))
+        self.assertEqual(invoice.base_amount, Decimal("55.00"))
+        self.assertEqual(invoice.plan, self.home_plan)
+        self.assertEqual(invoice.due_date, date(2026, 9, 12))
+
+    def test_home_booking_includes_assessment_fee_only_once(self):
+        # First invoice for this student -> assessment fee added once.
+        self.client.post(
+            reverse("staff_session_create"),
+            {
+                "student": self.home_student.pk,
+                "subject": "11_plus",
+                "session_date": "2026-09-12",
+                "start_time": "15:00",
+                "duration": "01:00",
+                "status": "scheduled",
+            },
+        )
+        first = Invoice.objects.get(student=self.home_student)
+        self.assertEqual(first.amount, Decimal("55.00"))  # 30 + 25 assessment
+
+        # A second home session -> no further assessment fee.
+        self.client.post(
+            reverse("staff_session_create"),
+            {
+                "student": self.home_student.pk,
+                "subject": "11_plus",
+                "session_date": "2026-09-19",
+                "start_time": "15:00",
+                "duration": "01:00",
+                "status": "scheduled",
+            },
+        )
+        invoices = Invoice.objects.filter(student=self.home_student).order_by("id")
+        self.assertEqual(invoices.count(), 2)
+        self.assertEqual(invoices[1].amount, Decimal("30.00"))

@@ -21,7 +21,7 @@ Each line = one commit-ready unit of work. Mark [x] when done.
 ### Session booking
 - [x] 1. Bookable list UI — staff sees every student + payment plan + sessions remaining (`/staff/bookings/`, `staff/booking_hub.html`).
 - [x] 2. Centre 8-block consumption — booking a centre session increments `Student.sessions_used_in_block`, reducing `remaining_sessions`; home = per-session/unlimited.
-- [ ] 3. Home per-session billing — booking a home session creates a per-session invoice line.
+- [x] 3. Home per-session billing — booking a home session creates a per-session invoice line (`Invoice.for_home_session`), incl. one-off assessment fee on first invoice.
 - [ ] 4. Custom/override deals — booking against a manually-priced plan / custom_price.
 - [ ] 5. Block renewal / reset — when a block is fully consumed, prompt to charge a new block and reset `sessions_used_in_block`.
 ### Assessment + PDF
@@ -39,7 +39,7 @@ Each line = one commit-ready unit of work. Mark [x] when done.
 ## Work state
 - Module 1 (billing foundation): DONE & pushed.
 - Module 2 (staff console: sessions/assessments/students): DONE, browser-verified, pushed.
-- Sub-modules 1-2 (bookable list UI + centre block consumption): DONE (36 tests), needs push.
-- 36 tests passing. Tailwind compiled after template changes.
+- Sub-modules 1-3 (bookable list UI + centre block consumption + home per-session billing): DONE (38 tests), browser-verified.
+- 38 tests passing. Tailwind compiled after template changes.
 - .env holds PLACEHOLDER email creds (console fallback mode until real IONOS creds filled in).
 - DB: Postgres `slough_tuition` @ localhost; superuser admin@example.com; staff staff@example.com / StaffPass123!.

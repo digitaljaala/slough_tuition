@@ -253,6 +253,34 @@ class Invoice(models.Model):
     def __str__(self):
         return f"{self.description} ({self.student.student_name})"
 
+    @classmethod
+    def for_home_session(cls, session):
+        """Sub-module 3: generate a per-session invoice line when a home
+        tuition session is booked. Home is billed per session at the plan's
+        effective (possibly custom-overridden) price, plus any assessment fee
+        if the student has no prior invoice yet."""
+        student = session.student
+        plan = student.payment_plan
+        if plan is None:
+            raise ValueError("Home student has no payment plan to bill against.")
+        amount = plan.effective_price()
+        assessment_fee = plan.assessment_fee
+        # One-off assessment fee is charged on the first-ever invoice only.
+        existing = cls.objects.filter(student=student).exists()
+        description = f"Home tuition session ({session.session_date})"
+        if not existing and assessment_fee and assessment_fee > 0:
+            amount += assessment_fee
+            description += f" + assessment fee £{assessment_fee:.2f}"
+        return cls.objects.create(
+            student=student,
+            invoice_type=cls.InvoiceType.SESSION,
+            plan=plan,
+            description=description,
+            base_amount=amount,
+            amount=amount,
+            due_date=session.session_date,
+        )
+
 
 # Session model
 class Session(models.Model):
