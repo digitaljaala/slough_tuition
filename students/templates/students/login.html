@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}Log in | Slough Tuition Center{% endblock %}
+
+{% block content %}
+<main class="flex min-h-[70vh] items-center justify-center px-6 py-16">
+  <div class="w-full max-w-md">
+    <div class="rounded-3xl border border-[#262322]/10 bg-white p-8 shadow-2xl">
+      <p class="text-xs font-bold uppercase tracking-[0.22em] text-[#36827F]">Welcome back</p>
+      <h1 class="mt-2 text-3xl font-black text-[#262322]">Log in</h1>
+      <p class="mt-2 text-sm text-[#262322]/60">Access your account to manage your child's tuition enquiries.</p>
+
+      {% if messages %}
+        <div class="mt-4 space-y-2">
+          {% for message in messages %}
+            <div class="rounded-xl border border-[#36827F]/30 bg-[#36827F]/10 px-4 py-3 text-sm font-semibold text-[#262322]" role="status">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <form method="post" class="mt-6 space-y-5" novalidate>
+        {% csrf_token %}
+        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+        {% if form.non_field_errors %}
+          <div class="rounded-xl border border-[#E63946]/30 bg-[#E63946]/10 px-4 py-3 text-sm text-[#E63946]" role="alert">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+        {% include "includes/form_field.html" with field=form.username %}
+        {% include "includes/form_field.html" with field=form.password %}
+        <button type="submit" class="w-full rounded-full bg-[#E63946] px-6 py-3.5 font-bold text-white shadow-lg shadow-[#E63946]/20 transition hover:bg-[#c92f3b]">Log in</button>
+      </form>
+
+      <p class="mt-6 text-center text-sm text-[#262322]/60">
+        New here?
+        <a href="{% url 'register' %}{% if next_url %}?next={{ next_url|urlencode }}{% endif %}" class="font-bold text-[#36827F] hover:underline">Create an account</a>
+      </p>
+    </div>
+  </div>
+</main>
+{% endblock %}

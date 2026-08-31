@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Enrolment | Slough Tuition Centre{% endblock %}
+
+{% block content %}
+<main class="mx-auto max-w-2xl px-6 py-12 lg:px-8">
+
+  <div class="text-center">
+    <p class="text-xs font-bold uppercase tracking-[0.28em] text-[#36827F]">Slough Tuition Centre</p>
+    <h1 class="mt-2 text-3xl font-black text-[#262322]">Student Enrolment &amp; Parental Agreement</h1>
+    <p class="mt-3 text-sm text-slate-600">
+      Please complete this form accurately. All communication regarding tuition, attendance, payments,
+      or concerns must be made directly with STC.
+    </p>
+  </div>
+
+  {% if messages %}
+    <div class="mt-6 space-y-2">
+      {% for message in messages %}
+        <div class="rounded-xl border border-[#36827F]/30 bg-[#36827F]/10 px-4 py-3 text-sm font-semibold text-[#262322]" role="status">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {# Step indicator #}
+  <div class="mt-8">
+    <div class="flex items-center justify-between gap-1 text-center text-xs font-bold">
+      {% for label in step_labels %}
+        <div class="step-dot flex-1">
+          <div data-step-indicator="{{ forloop.counter }}"
+               class="mx-auto flex h-8 w-8 items-center justify-center rounded-full border-2 border-slate-300 text-slate-400 transition"></div>
+          <p data-step-label="{{ forloop.counter }}" class="mt-1.5 hidden text-[10px] uppercase tracking-wide text-slate-400 sm:block">{{ label }}</p>
+        </div>
+        {% if not forloop.last %}<div class="h-0.5 w-6 flex-1 rounded bg-slate-200" data-step-line="{{ forloop.counter }}"></div>{% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if form_errors %}
+    <div class="mt-6 rounded-xl border border-[#E63946]/30 bg-[#E63946]/10 px-4 py-3 text-sm text-[#E63946]" role="alert">
+      Please fix the highlighted fields and try again.
+    </div>
+  {% endif %}
+
+  <form method="post" action="{% url 'enrol' %}" class="mt-8" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="token" value="{{ token }}">
+
+    {# STEP 1 - Student info #}
+    <section data-step="1" class="step-section rounded-3xl border border-[#262322]/10 bg-white p-6 shadow-sm sm:p-8">
+      <p class="text-xs font-bold uppercase tracking-[0.22em] text-[#36827F]">Section 1</p>
+      <h2 class="mt-1 text-2xl font-black text-[#262322]">Student's Details</h2>
+      <p class="mt-1 text-sm text-slate-500">Completing enrolment for <strong>{{ invited_parent.parent_name }}</strong> ({{ request.user.email }})</p>
+
+      <div class="mt-6 space-y-5">
+        {% include "includes/form_field.html" with field=student_form.student_name %}
+        <div class="grid gap-5 sm:grid-cols-2">
+          {% include "includes/form_field.html" with field=student_form.date_of_birth %}
+          {% include "includes/form_field.html" with field=student_form.year_group %}
+        </div>
+        {% include "includes/form_field.html" with field=student_form.school_name %}
+        <div>
+          <label class="block text-sm font-semibold text-[#262322]">{{ student_form.subjects.label }}</label>
+          <div class="mt-3 grid gap-2 sm:grid-cols-2">
+            {% for radio in student_form.subjects %}
+              <label class="flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#262322] transition hover:border-[#36827F]/40 hover:bg-[#36827F]/5 has-[:checked]:border-[#36827F] has-[:checked]:bg-[#36827F]/10">
+                {{ radio.tag }}
+                <span>{{ radio.choice_label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+          {% if student_form.subjects.errors %}
+            <p class="mt-1 text-sm font-medium text-[#E63946]" role="alert">{{ student_form.subjects.errors.0 }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    {# STEP 2 - Parent/Guardian #}
+    <section data-step="2" class="step-section hidden rounded-3xl border border-[#262322]/10 bg-white p-6 shadow-sm sm:p-8">
+      <p class="text-xs font-bold uppercase tracking-[0.22em] text-[#36827F]">Section 2</p>
+      <h2 class="mt-1 text-2xl font-black text-[#262322]">Parent / Guardian Details</h2>
+
+      <div class="mt-6 space-y-5">
+        <div class="grid gap-5 sm:grid-cols-2">
+          {% include "includes/form_field.html" with field=parent_form.parent_name %}
+          {% include "includes/form_field.html" with field=parent_form.relationship_to_student %}
+        </div>
+        <div class="grid gap-5 sm:grid-cols-2">
+          {% include "includes/form_field.html" with field=parent_form.phone_number %}
+          {% include "includes/form_field.html" with field=parent_form.email %}
+        </div>
+        {% include "includes/form_field.html" with field=parent_form.address %}
+      </div>
+    </section>
+
+    {# STEP 3 - Emergency contact #}
+    <section data-step="3" class="step-section hidden rounded-3xl border border-[#262322]/10 bg-white p-6 shadow-sm sm:p-8">
+      <p class="text-xs font-bold uppercase tracking-[0.22em] text-[#36827F]">Section 3</p>
+      <h2 class="mt-1 text-2xl font-black text-[#262322]">Emergency Contact</h2>
+      <p class="mt-1 text-sm text-slate-500">Must be different from the parent / guardian above.</p>
+
+      <div class="mt-6 space-y-5">
+        <div class="grid gap-5 sm:grid-cols-2">
+          {% include "includes/form_field.html" with field=emergency_form.full_name %}
+          {% include "includes/form_field.html" with field=emergency_form.relationship %}
+        </div>
+        {% include "includes/form_field.html" with field=emergency_form.phone_number %}
+      </div>
+    </section>
+
+    {# STEP 4 - Medical #}
+    <section data-step="4" class="step-section hidden rounded-3xl border border-[#262322]/10 bg-white p-6 shadow-sm sm:p-8">
+      <p class="text-xs font-bold uppercase tracking-[0.22em] text-[#36827F]">Section 4</p>
+      <h2 class="mt-1 text-2xl font-black text-[#262322]">Medical / Special Requirements</h2>
+      <p class="mt-1 text-sm text-slate-500">If none, please enter "N/A".</p>
+
+      <div class="mt-6">
+        {% include "includes/form_field.html" with field=medical_form.details %}
+      </div>
+    </section>
+
+    {# STEP 5 - Additional questions #}
+    <section data-step="5" class="step-section hidden rounded-3xl border border-[#262322]/10 bg-white p-6 shadow-sm sm:p-8">
+      <p class="text-xs font-bold uppercase tracking-[0.22em] text-[#36827F]">Section 5</p>
+      <h2 class="mt-1 text-2xl font-black text-[#262322]">Questions for STC</h2>
+      <p class="mt-1 text-sm text-slate-500">Optional. If none, please enter "N/A".</p>
+
+      <div class="mt-6">
+        {% include "includes/form_field.html" with field=agreement_form.additional_questions %}
+      </div>
+    </section>
+
+    {# STEP 6 - Agreement #}
+    <section data-step="6" class="step-section hidden rounded-3xl border border-[#262322]/10 bg-white p-6 shadow-sm sm:p-8">
+      <p class="text-xs font-bold uppercase tracking-[0.22em] text-[#36827F]">Section 6</p>
+      <h2 class="mt-1 text-2xl font-black text-[#262322]">Agreement</h2>
+
+      <div class="mt-6 rounded-2xl bg-[#F2E5D7]/60 p-5 text-sm leading-relaxed text-[#262322]">
+        <p class="font-bold">At Slough Tuition Centre (STC), we promise to:</p>
+        <ul class="mt-2 list-disc space-y-1 pl-5">
+          <li>Provide a safe, supportive, and engaging environment where your child can truly thrive.</li>
+          <li>Support your child in reaching their full potential as a learner and a valued member of the STC community.</li>
+          <li>Inspire students to take responsibility for their learning and celebrate their achievements.</li>
+          <li>Keep you regularly informed about your child's progress and updates on STC activities and initiatives.</li>
+          <li>Enforce STC's behaviour and anti-bullying policies to ensure a respectful and inclusive atmosphere for all.</li>
+          <li>Provide homework for all students based on what best supports the child's learning.</li>
+          <li class="list-none">Reserve the right to cancel any session due to unforeseen circumstances.</li>
+        </ul>
+      </div>
+
+      <h3 class="mt-6 font-bold text-[#262322]">Payment &amp; Attendance Agreement</h3>
+
+      <p class="mt-5 text-xs font-bold uppercase tracking-[0.2em] text-[#36827F]">Payment terms</p>
+      <div class="mt-2 space-y-3">
+        {% include "includes/agreement_checkbox.html" with field=agreement_form.pays_in_advance %}
+        {% include "includes/agreement_checkbox.html" with field=agreement_form.pays_on_time %}
+        {% include "includes/agreement_checkbox.html" with field=agreement_form.understands_no_refund %}
+      </div>
+
+      <p class="mt-5 text-xs font-bold uppercase tracking-[0.2em] text-[#36827F]">Attendance &amp; conduct</p>
+      <div class="mt-2 space-y-3">
+        {% include "includes/agreement_checkbox.html" with field=agreement_form.gives_24h_notice %}
+        {% include "includes/agreement_checkbox.html" with field=agreement_form.child_on_time %}
+      </div>
+
+      <p class="mt-5 text-xs font-bold uppercase tracking-[0.2em] text-[#36827F]">Final confirmations</p>
+      <div class="mt-2 space-y-3">
+        {% include "includes/agreement_checkbox.html" with field=agreement_form.confirm_terms %}
+        {% include "includes/agreement_checkbox.html" with field=agreement_form.confirms_official_contact %}
+      </div>
+    </section>
+
+    {# Navigation buttons #}
+    <div class="mt-6 flex items-center justify-between gap-3">
+      <button type="button" id="prev-step"
+              class="rounded-full border border-[#262322]/15 px-6 py-3 text-sm font-bold text-[#262322] transition hover:bg-[#F2E5D7] hidden">
+        Back
+      </button>
+      <button type="button" id="next-step"
+              class="ml-auto rounded-full bg-[#E63946] px-8 py-3 text-sm font-bold text-white shadow-md shadow-[#E63946]/20 transition hover:bg-[#c92f3b]">
+        Next
+      </button>
+      <button type="submit" id="submit-step"
+              class="ml-auto hidden rounded-full bg-[#E63946] px-8 py-3 text-sm font-bold text-white shadow-md shadow-[#E63946]/20 transition hover:bg-[#c92f3b]">
+        Submit enrolment
+      </button>
+    </div>
+  </form>
+</main>
+
+<script>
+(function () {
+  var sections = Array.prototype.slice.call(document.querySelectorAll('.step-section'));
+  var maxStep = sections.length;
+  var startStep = {{ initial_step }};
+  var current = 1;
+
+  function showStep(n) {
+    current = Math.min(maxStep, Math.max(1, n));
+    sections.forEach(function (s, i) {
+      s.classList.toggle('hidden', (i + 1) !== current);
+    });
+    var prev = document.getElementById('prev-step');
+    var next = document.getElementById('next-step');
+    var submit = document.getElementById('submit-step');
+    prev.classList.toggle('hidden', current === 1);
+    next.classList.toggle('hidden', current === maxStep);
+    submit.classList.toggle('hidden', current !== maxStep);
+    // update indicators
+    [1, 2, 3, 4, 5, 6].forEach(function (i) {
+      var dot = document.querySelector('[data-step-indicator="' + i + '"]');
+      var lbl = document.querySelector('[data-step-label="' + i + '"]');
+      if (dot) {
+        if (i < current) {
+          dot.classList.remove('border-slate-300', 'text-slate-400');
+          dot.classList.add('border-[#36827F]', 'bg-[#36827F]', 'text-white');
+          dot.textContent = '\u2713';
+        } else if (i === current) {
+          dot.classList.add('border-[#36827F]', 'bg-white', 'text-[#36827F]');
+          dot.classList.remove('border-slate-300', 'text-slate-400');
+          dot.textContent = i;
+        } else {
+          dot.classList.add('border-slate-300', 'text-slate-400');
+          dot.classList.remove('border-[#36827F]', 'bg-[#36827F]', 'text-white', 'bg-white', 'text-[#36827F]');
+          dot.textContent = i;
+        }
+      }
+      if (lbl) lbl.classList.toggle('text-[#36827F]', i <= current);
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  document.getElementById('next-step').addEventListener('click', function () {
+    showStep(current + 1);
+  });
+  document.getElementById('prev-step').addEventListener('click', function () {
+    showStep(current - 1);
+  });
+
+  showStep(startStep);
+})();
+</script>
+{% endblock %}

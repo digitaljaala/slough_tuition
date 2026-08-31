@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}Home | Slough Tuition Center{% endblock %}
+
+{% block content %}
+    <style>
+        .bg-\[\#f3f5f8\] { background-color: #F2E5D7; }
+        .bg-\[\#0e1a31\] { background-color: #36827F; }
+        .bg-\[\#edf1f5\] { background-color: #F2E5D7; }
+        .bg-red-400 { background-color: #E63946; }
+        .bg-red-50 { background-color: rgb(230 57 70 / 0.1); }
+        .text-red-400 { color: #E63946; }
+        .text-red-500 { color: #E63946; }
+        .text-slate-900 { color: #262322; }
+        .text-slate-700 { color: rgb(38 35 34 / 0.85); }
+        .text-slate-600 { color: rgb(38 35 34 / 0.72); }
+        .text-slate-500 { color: rgb(38 35 34 / 0.6); }
+        .hover\:bg-red-300:hover { background-color: #c92f3b; }
+        .hover\:text-red-400:hover { color: #36827F; }
+    </style>
+
+    {% if messages %}
+        <div class="mx-auto max-w-[1280px] px-6 pt-6 lg:px-8">
+            {% for message in messages %}
+                <div class="rounded-xl border border-[#36827F]/30 bg-[#36827F]/10 px-4 py-3 text-sm font-semibold text-[#262322]" role="status">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <main>
+        <section class="relative overflow-hidden bg-[#F2E5D7] px-6 py-20 lg:px-8 lg:py-28">
+            <div class="mx-auto grid max-w-[1280px] items-center gap-14 lg:grid-cols-[1.15fr_0.85fr]">
+                <div class="relative z-10">
+                    <p class="mb-6 text-xs font-bold uppercase tracking-[0.3em] text-[#36827F]">Learn with confidence</p>
+                    <h1 class="max-w-3xl text-6xl font-black leading-[0.92] tracking-tight text-[#262322] sm:text-7xl lg:text-8xl">Progress starts<br><span class="text-[#E63946]">with the right</span><br>support.</h1>
+                    <p class="mt-8 max-w-xl text-lg leading-8 text-[#262322]/75">Personalised tuition for students from Key Stage 2 to A Levels, entrance exams, and English language tests.</p>
+                    <div class="mt-9 flex flex-wrap items-center gap-4">
+                        <a href="#registration-modal" data-open-registration class="rounded-full bg-[#E63946] px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#E63946]/20 transition hover:bg-[#c92f3b]">Register</a>
+                        <a href="#courses" class="text-sm font-bold text-[#262322] underline decoration-[#36827F] decoration-2 underline-offset-8 transition hover:text-[#36827F]">Explore courses</a>
+                    </div>
+                    <p class="mt-10 text-xs font-semibold uppercase tracking-[0.16em] text-[#262322]/55">Experienced tutors &middot; Personalised learning &middot; Real progress</p>
+                </div>
+
+                <div class="relative mx-auto flex min-h-[360px] w-full max-w-md items-center justify-center">
+                    <div class="absolute h-72 w-72 rounded-full bg-[#E63946] sm:h-80 sm:w-80"></div>
+                    <div class="absolute right-2 top-0 h-28 w-28 rounded-full border-[18px] border-[#36827F] sm:right-4"></div>
+                    <div class="relative flex h-64 w-64 rotate-[-5deg] flex-col justify-between rounded-[2rem] border-2 border-[#262322] bg-white p-7 shadow-[12px_12px_0_#262322] sm:h-72 sm:w-72">
+                        <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#36827F]">Our promise</p>
+                        <p class="text-5xl font-black leading-[0.9] text-[#262322]">Is<br><span class="text-[#E63946]">progress.</span></p>
+                        <p class="text-sm font-semibold text-[#262322]/70">Slough Tuition Centre</p>
+                    </div>
+                    <span class="absolute -bottom-2 left-0 rounded-full border border-[#262322]/15 bg-white px-4 py-2 text-xs font-bold text-[#262322] shadow-md">GCSE</span>
+                    <span class="absolute right-0 top-24 rounded-full border border-[#262322]/15 bg-white px-4 py-2 text-xs font-bold text-[#262322] shadow-md">11+</span>
+                    <span class="absolute bottom-10 right-4 rounded-full border border-[#262322]/15 bg-white px-4 py-2 text-xs font-bold text-[#262322] shadow-md">A Levels</span>
+                </div>
+            </div>
+        </section>
+ 
+        <section class="bg-[#0e1a31] py-8 text-center text-white"><div class="mx-auto grid max-w-[1280px] grid-cols-2 gap-4 px-6 md:grid-cols-4"><div class="py-6"><div class="text-4xl font-black">5K+</div><div class="mt-2 text-sm text-slate-200">Students Taught</div></div><div class="py-6"><div class="text-4xl font-black">100K+</div><div class="mt-2 text-sm text-slate-200">Lessons Delivered</div></div><div class="py-6"><div class="text-4xl font-black">3K+</div><div class="mt-2 text-sm text-slate-200">Satisfied Parents</div></div><div class="py-6"><div class="text-4xl font-black">300+</div><div class="mt-2 text-sm text-slate-200">Qualified Tutors</div></div></div></section>
+
+        <section id="courses" class="mx-auto max-w-[1280px] px-6 py-20 lg:px-8"><div class="mb-12 text-center"><p class="text-xs font-bold uppercase tracking-[0.28em] text-red-400">Curriculums</p><h2 class="mt-4 text-4xl font-black">Our Core Academic Programs</h2><p class="mx-auto mt-4 max-w-3xl text-lg text-slate-600">Carefully structured pathways ensuring your child meets syllabus checkpoints, boosts confidence, and excels in major exams.</p></div><div class="grid gap-8 md:grid-cols-3"><article class="rounded-[22px] border border-slate-200 bg-white p-6 shadow-md"><h3 class="text-[1.65rem] font-black">Key Stage 2</h3><p class="mt-4 leading-7 text-slate-600">Build strong foundations in English, Maths, and Science with supportive lessons tailored to your child's confidence and progress.</p></article><article class="rounded-[22px] border border-slate-200 bg-white p-6 shadow-md"><h3 class="text-[1.65rem] font-black">11 Plus</h3><p class="mt-4 leading-7 text-slate-600">Focused preparation for grammar school entrance, with expert guidance in verbal reasoning, non-verbal reasoning, English, and Maths.</p></article><article class="rounded-[22px] border border-slate-200 bg-white p-6 shadow-md"><h3 class="text-[1.65rem] font-black">GCSE &amp; A Level</h3><p class="mt-4 leading-7 text-slate-600">Subject specialists, booster classes, and exam preparation across major subjects and exam boards.</p></article></div></section>
+
+        <section id="about" class="bg-[#edf1f5] py-20"><div class="mx-auto max-w-4xl px-6 text-center"><p class="text-xs font-bold uppercase tracking-[0.28em] text-red-400">Parent Success Stories</p><h2 class="mt-4 text-4xl font-black">What Parents Say About Us</h2><blockquote class="mt-10 rounded-[22px] bg-white p-10 text-left shadow-md"><p class="text-2xl leading-[1.7] text-slate-700">“My two sons have been attending Slough Tuition Centre for a couple of years and enjoy the professional and supportive environment.”</p><p class="mt-8 font-bold">Kashif Khan <span class="font-normal text-slate-500">Parent</span></p></blockquote></div></section>
+    </main>
+
+    <footer id="contact" class="bg-[#0e1a31] px-6 py-14 text-white"><div class="mx-auto grid max-w-[1280px] gap-10 md:grid-cols-3"><div><h2 class="text-xl font-bold">Slough Tuition Center</h2><p class="mt-4 text-sm leading-7 text-slate-300">High-quality teaching, flexible learning, and dedicated academic support.</p></div><div><h3 class="font-bold">Quick Links</h3><div class="mt-4 space-y-2 text-sm text-slate-300"><a href="#courses" class="block hover:text-red-300">Courses</a><a href="#about" class="block hover:text-red-300">About</a><a href="#contact" class="block hover:text-red-300">Contact</a></div></div><div><h3 class="font-bold">Contact us</h3><p class="mt-4 text-sm text-slate-300">info@sloughtuition.com<br>01753 318318<br>Labour Memorial Hall, Slough</p></div></div></footer>
+
+    <div id="registration-modal" class="{% if parent_form.errors or student_form.errors %}{% else %}hidden {% endif %}fixed inset-0 z-[60] overflow-y-auto bg-slate-950/60 px-4 py-8" role="dialog" aria-modal="true">
+      <div class="mx-auto w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
+        <div class="flex items-start justify-between gap-6">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.22em] text-red-400">Start your journey</p>
+            <h2 class="mt-2 text-3xl font-black">Tell us about your child</h2>
+          </div>
+          <button id="close-registration" type="button" class="text-2xl" aria-label="Close registration form">&times;</button>
+        </div>
+        <form method="post" action="{% url 'register_student' %}" class="mt-8 space-y-5" novalidate>
+          {% csrf_token %}
+          {% if parent_form.non_field_errors or student_form.non_field_errors %}
+            <div class="rounded-xl border border-[#E63946]/30 bg-[#E63946]/10 px-4 py-3 text-sm text-[#E63946]" role="alert">
+              {{ parent_form.non_field_errors }}
+              {{ student_form.non_field_errors }}
+            </div>
+          {% endif %}
+          <div class="grid gap-5 sm:grid-cols-2">
+            {% include "includes/form_field.html" with field=parent_form.parent_name %}
+            {% include "includes/form_field.html" with field=parent_form.phone_number %}
+            {% include "includes/form_field.html" with field=parent_form.email %}
+            {% include "includes/form_field.html" with field=student_form.student_name %}
+            {% include "includes/form_field.html" with field=student_form.year_group %}
+            {% include "includes/form_field.html" with field=student_form.date_of_birth %}
+          </div>
+          {% include "includes/form_field.html" with field=student_form.support_needed %}
+          <button type="submit" class="w-full rounded-full bg-red-400 px-6 py-3.5 font-bold text-white hover:bg-red-300">Send registration enquiry</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+        const modal = document.querySelector('#registration-modal');
+        document.querySelectorAll('[data-open-registration]').forEach((link) => link.addEventListener('click', (event) => { event.preventDefault(); modal.classList.remove('hidden'); }));
+        document.querySelector('#close-registration').addEventListener('click', () => modal.classList.add('hidden'));
+        modal.addEventListener('click', (event) => { if (event.target === modal) modal.classList.add('hidden'); });
+    </script>
+{% endblock %}

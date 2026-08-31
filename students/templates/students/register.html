@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Create account | Slough Tuition Center{% endblock %}
+
+{% block content %}
+<main class="flex min-h-[70vh] items-center justify-center px-6 py-16">
+  <div class="w-full max-w-md">
+    <div class="rounded-3xl border border-[#262322]/10 bg-white p-8 shadow-2xl">
+      <p class="text-xs font-bold uppercase tracking-[0.22em] text-[#36827F]">Get started</p>
+      <h1 class="mt-2 text-3xl font-black text-[#262322]">Create your account</h1>
+      {% if next_url %}
+        <p class="mt-2 rounded-xl border border-[#36827F]/30 bg-[#36827F]/10 px-4 py-3 text-sm font-semibold text-[#262322]">
+          You're one step from finishing your child's enrolment. Create a quick
+          account (2 minutes) and we'll take you straight to the form.
+        </p>
+      {% else %}
+        <p class="mt-2 text-sm text-[#262322]/60">Sign up to manage your child's tuition enquiries.</p>
+      {% endif %}
+
+      {% if messages %}
+        <div class="mt-4 space-y-2">
+          {% for message in messages %}
+            <div class="rounded-xl border border-[#36827F]/30 bg-[#36827F]/10 px-4 py-3 text-sm font-semibold text-[#262322]" role="status">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <form method="post" class="mt-6 space-y-5" novalidate>
+        {% csrf_token %}
+        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+        {% if form.non_field_errors %}
+          <div class="rounded-xl border border-[#E63946]/30 bg-[#E63946]/10 px-4 py-3 text-sm text-[#E63946]" role="alert">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+        {% include "includes/form_field.html" with field=form.email %}
+        {% include "includes/form_field.html" with field=form.password1 %}
+        {% include "includes/form_field.html" with field=form.password2 %}
+        {% if form.password1.help_text %}
+          <ul class="mt-1 list-inside list-disc text-xs text-[#262322]/60">
+            {% for help in form.password1.help_text %}
+              <li>{{ help }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        <button type="submit" class="w-full rounded-full bg-[#E63946] px-6 py-3.5 font-bold text-white shadow-lg shadow-[#E63946]/20 transition hover:bg-[#c92f3b]">Create account</button>
+      </form>
+
+      <p class="mt-6 text-center text-sm text-[#262322]/60">
+        Already have an account?
+        <a href="{% url 'login' %}{% if next_url %}?next={{ next_url|urlencode }}{% endif %}" class="font-bold text-[#36827F] hover:underline">Log in</a>
+      </p>
+    </div>
+  </div>
+</main>
+{% endblock %}

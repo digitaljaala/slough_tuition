@@ -1,0 +1,10 @@
+<label class="block text-sm font-semibold text-[#262322]">
+  {{ field.label }}
+  {% if field.help_text %}
+    <span class="font-normal text-slate-400">({{ field.help_text }})</span>
+  {% endif %}
+  {{ field }}
+  {% if field.errors %}
+    <p class="mt-1 text-sm font-medium text-[#E63946]" role="alert">{{ field.errors.0 }}</p>
+  {% endif %}
+</label>

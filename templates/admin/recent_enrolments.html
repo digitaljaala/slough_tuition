@@ -1,0 +1,29 @@
+{% if enrolments %}
+<div class="module" style="margin-top: 20px;">
+  <h2>Recent enrolments</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Child</th>
+        <th>Parent / guardian</th>
+        <th>Year group</th>
+        <th>Completed</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for agreement in enrolments %}
+        <tr>
+          <td>
+            {% if agreement.student %}
+              <a href="{% url 'admin:students_student_change' agreement.student.pk %}">{{ agreement.student.student_name }}</a>
+            {% endif %}
+          </td>
+          <td>{{ agreement.student.parent.parent_name }}</td>
+          <td>{{ agreement.student.year_group }}</td>
+          <td>{{ agreement.agreed_at|date:"j M Y H:i" }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}

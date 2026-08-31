@@ -1,0 +1,27 @@
+@import "tailwindcss";
+@source "../../templates/**/*.html";
+@source "../../core/templates/**/*.html";
+@source "../../students/templates/**/*.html";
+
+/* Bootstrap-style accordions used on My Account */
+.acc-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+.acc-item.open .acc-panel {
+  grid-template-rows: 1fr;
+}
+.acc-panel > div {
+  overflow: hidden;
+  min-height: 0;
+}
+.acc-item.open .acc-panel {
+  border-top: 1px solid rgb(226 232 240);
+}
+.acc-chev {
+  transition: transform 0.25s ease;
+}
+.acc-item.open .acc-chev {
+  transform: rotate(180deg);
+}

@@ -1,0 +1,7 @@
+<label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm leading-relaxed text-[#262322] transition hover:border-[#36827F]/40 hover:bg-[#36827F]/5">
+  {{ field }}
+  <span>{{ field.label }}</span>
+</label>
+{% if field.errors %}
+  <p class="mt-1 text-sm font-medium text-[#E63946]" role="alert">{{ field.errors.0 }}</p>
+{% endif %}
