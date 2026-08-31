@@ -241,6 +241,125 @@ class StudentForm(StyledModelForm):
         return student
 
 
+class ParentContactUpdateForm(StyledModelForm):
+    """Parent self-service: update their own contact details only.
+
+    The display name is deliberately excluded — it stays centre-controlled.
+    """
+
+    class Meta:
+        model = Parent
+        fields = ("phone_number", "email", "address")
+        labels = {
+            "phone_number": "Contact number",
+            "email": "Email address",
+            "address": "Home address",
+        }
+        help_texts = {
+            "email": "We'll use this to email you updates and invoices.",
+        }
+        widgets = {
+            "phone_number": forms.TelInput(
+                attrs=_widget_attrs(
+                    placeholder="e.g. 01753 318318",
+                    autocomplete="tel",
+                    extra={"inputmode": "tel"},
+                )
+            ),
+            "email": forms.EmailInput(
+                attrs=_widget_attrs(
+                    placeholder="you@example.com",
+                    autocomplete="email",
+                )
+            ),
+            "address": forms.Textarea(
+                attrs=_widget_attrs(
+                    placeholder="Street, town, postcode",
+                    autocomplete="street-address",
+                    extra={"rows": 2},
+                )
+            ),
+        }
+
+    def clean_phone_number(self):
+        phone = self.cleaned_data["phone_number"].strip()
+        compact = re.sub(r"[\s\-().]", "", phone)
+        if not UK_PHONE_RE.fullmatch(compact):
+            raise ValidationError(
+                "Enter a valid UK phone number, e.g. 01753 318318 or 07553 123565."
+            )
+        return phone
+
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip().lower()
+        # Keep it unique unless it's the same contact already in use.
+        qs = Parent.objects.filter(email=email)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if email and qs.exists():
+            raise ValidationError("Another account already uses this email.")
+        return email
+
+
+class ChildDetailUpdateForm(StyledModelForm):
+    """Parent self-service: safe, updatable facts about their child.
+
+    Billing, name, year group and subjects stay centre-controlled — only
+    school, date of birth and support notes are editable here.
+    """
+
+    class Meta:
+        model = Student
+        fields = ("school_name", "date_of_birth", "support_needed")
+        labels = {
+            "school_name": "School name",
+            "date_of_birth": "Date of birth",
+            "support_needed": "What support does your child need?",
+        }
+        help_texts = {
+            "school_name": "Optional",
+            "date_of_birth": "Optional",
+            "support_needed": "Let the centre know about any changed needs.",
+        }
+        widgets = {
+            "school_name": forms.TextInput(
+                attrs=_widget_attrs(
+                    placeholder="Child's school (if applicable)",
+                    autocomplete="organization",
+                )
+            ),
+            "date_of_birth": forms.DateInput(
+                format="%Y-%m-%d",
+                attrs=_widget_attrs(
+                    placeholder="",
+                    autocomplete="bday",
+                    input_type="date",
+                ),
+            ),
+            "support_needed": forms.Textarea(
+                attrs=_widget_attrs(
+                    placeholder="Subjects, goals, or questions",
+                    autocomplete="off",
+                    extra={"rows": 3},
+                )
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["date_of_birth"].input_formats = ["%Y-%m-%d"]
+        self.fields["date_of_birth"].required = False
+        self.fields["date_of_birth"].widget.attrs["max"] = timezone.localdate().isoformat()
+        self.fields["school_name"].required = False
+        self.fields["support_needed"].required = False
+
+    def clean_date_of_birth(self):
+        dob = self.cleaned_data.get("date_of_birth")
+        if dob and dob > timezone.localdate():
+            raise ValidationError("Date of birth cannot be in the future.")
+        return dob
+
+
 class EmergencyContactForm(StyledModelForm):
     class Meta:
         model = EmergencyContact

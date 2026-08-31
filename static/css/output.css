@@ -485,6 +485,9 @@
   .max-w-7xl {
     max-width: var(--container-7xl);
   }
+  .max-w-\[640px\] {
+    max-width: 640px;
+  }
   .max-w-\[1100px\] {
     max-width: 1100px;
   }
@@ -929,6 +932,9 @@
   .py-20 {
     padding-block: calc(var(--spacing) * 20);
   }
+  .pt-2 {
+    padding-top: calc(var(--spacing) * 2);
+  }
   .pt-3 {
     padding-top: calc(var(--spacing) * 3);
   }
@@ -1309,6 +1315,9 @@
     }
     .hover\:bg-\[\#36827F\]\/5:hover {
       background-color: color-mix(in oklab, #36827F 5%, transparent);
+    }
+    .hover\:bg-\[\#36827F\]\/10:hover {
+      background-color: color-mix(in oklab, #36827F 10%, transparent);
     }
     .hover\:bg-\[\#F2E5D7\]:hover {
       background-color: #F2E5D7;

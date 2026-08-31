@@ -11,7 +11,16 @@ from .forms import (
     StudentForm,
     UserRegistrationForm,
 )
-from .models import EnrolmentAgreement, Invoice, Parent, ProgressReport, Session, Student
+from .models import (
+    EmergencyContact,
+    EnrolmentAgreement,
+    Invoice,
+    MedicalInfo,
+    Parent,
+    ProgressReport,
+    Session,
+    Student,
+)
 
 User = get_user_model()
 
@@ -701,3 +710,113 @@ class LoginRedirectTests(TestCase):
         response = self.client.get(response.url)
         self.assertContains(response, "Welcome back, Jane Parent")
         self.assertNotContains(response, "Welcome back, parent@example.com")
+
+
+class ParentSelfServiceEditTests(TestCase):
+    """Parents may edit their own general details, but not billing, and never
+    another account's data."""
+
+    def setUp(self):
+        self.parent = Parent.objects.create(
+            user=User.objects.create_user(
+                email="owner@example.com", password="OwnerPass123!"
+            ),
+            parent_name="Owner Parent",
+            email="owner@example.com",
+            phone_number="01753 000000",
+            address="1 Old Street",
+        )
+        self.student = Student.objects.create(
+            parent=self.parent,
+            student_name="Own Kid",
+            year_group="Year 8",
+            school_name="Old School",
+            support_needed="Maths help",
+            subjects=["gcse_maths"],
+            delivery_type=DeliveryType.CENTRE,
+        )
+        # A second, unrelated parent whose data must stay off-limits.
+        self.other = Parent.objects.create(
+            user=User.objects.create_user(
+                email="other@example.com", password="OtherPass123!"
+            ),
+            parent_name="Other Parent",
+            email="other@example.com",
+            phone_number="01753 111111",
+        )
+        self.other_student = Student.objects.create(
+            parent=self.other, student_name="Other Kid", year_group="Year 7"
+        )
+        self.client.login(username="owner@example.com", password="OwnerPass123!")
+
+    def test_parent_can_update_own_contact_details(self):
+        response = self.client.post(
+            reverse("edit_parent"),
+            {
+                "phone_number": "07553 555555",
+                "email": "owner@example.com",
+                "address": "99 New Road",
+            },
+        )
+        self.assertRedirects(response, reverse("my_account"))
+        self.parent.refresh_from_db()
+        self.assertEqual(self.parent.phone_number, "07553 555555")
+        self.assertEqual(self.parent.address, "99 New Road")
+        # Name is not editable from this form.
+        self.assertEqual(self.parent.parent_name, "Owner Parent")
+
+    def test_child_safe_fields_update_and_billing_fields_untouched(self):
+        self.client.post(
+            reverse("edit_student", args=[self.student.pk]),
+            {
+                "school_name": "New School",
+                "date_of_birth": "2012-01-01",
+                "support_needed": "Now needs English too",
+            },
+        )
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.school_name, "New School")
+        self.assertEqual(self.student.support_needed, "Now needs English too")
+        # Centre-owned fields are not part of the editable form.
+        self.assertEqual(self.student.student_name, "Own Kid")
+        self.assertEqual(self.student.year_group, "Year 8")
+        self.assertEqual(self.student.delivery_type, DeliveryType.CENTRE)
+
+    def test_cannot_edit_another_parents_student(self):
+        response = self.client.post(
+            reverse("edit_student", args=[self.other_student.pk]),
+            {"school_name": "Hacked"},
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_cannot_edit_another_parents_emergency(self):
+        response = self.client.get(
+            reverse("edit_emergency", args=[self.other_student.pk])
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_cannot_edit_another_parents_medical(self):
+        response = self.client.get(
+            reverse("edit_medical", args=[self.other_student.pk])
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_emergency_contact_create_and_update(self):
+        self.client.post(
+            reverse("edit_emergency", args=[self.student.pk]),
+            {
+                "full_name": "Jane Emerg",
+                "relationship": "Mother",
+                "phone_number": "07553 777777",
+            },
+        )
+        contact = EmergencyContact.objects.get(student=self.student)
+        self.assertEqual(contact.full_name, "Jane Emerg")
+
+    def test_medical_info_create_and_update(self):
+        self.client.post(
+            reverse("edit_medical", args=[self.student.pk]),
+            {"details": "Asthma, needs inhaler nearby"},
+        )
+        medical = MedicalInfo.objects.get(student=self.student)
+        self.assertEqual(medical.details, "Asthma, needs inhaler nearby")

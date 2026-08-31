@@ -3,20 +3,23 @@ from urllib.parse import quote
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.core.mail import mail_admins
 from django.db import transaction
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 
-from .models import Parent, Student
+from .models import EmergencyContact, MedicalInfo, Parent, Student
 from .security import get_owned_queryset, raise_403_if_not_owned
 
 from .forms import (
+    ChildDetailUpdateForm,
     EmergencyContactForm,
     EnrolmentAgreementForm,
     LoginForm,
     MedicalInfoForm,
+    ParentContactUpdateForm,
     ParentForm,
     StudentForm,
     UserRegistrationForm,
@@ -154,6 +157,106 @@ def my_account(request):
             "parent": parent,
             "students": students,
         },
+    )
+
+
+def _get_owned_student_or_403(request, pk):
+    """Return a student whose parent account belongs to the logged-in user,
+    otherwise 403. This is the ownership gate for every parent-side edit."""
+    if not request.user.is_authenticated:
+        raise PermissionDenied
+    return get_object_or_404(
+        Student.objects.filter(parent__user=request.user),
+        pk=pk,
+    )
+
+
+@login_required
+def edit_parent(request):
+    """Parent self-service: update their own contact details (name is
+    centre-controlled and therefore not editable here)."""
+    parent = get_owned_queryset(Parent, "user", request).first()
+    if parent is None:
+        messages.error(request, "No parent profile found for your account.")
+        return redirect("my_account")
+    form = ParentContactUpdateForm(instance=parent)
+    if request.method == "POST":
+        form = ParentContactUpdateForm(request.POST, instance=parent)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Your contact details have been updated.")
+            return redirect("my_account")
+    return render(
+        request,
+        "students/edit_parent.html",
+        {"form": form, "parent": parent},
+    )
+
+
+@login_required
+def edit_student(request, pk):
+    """Parent self-service: update safe child details (school, DOB, support).
+    Name, year group, subjects and all billing stay centre-controlled."""
+    student = _get_owned_student_or_403(request, pk)
+    form = ChildDetailUpdateForm(instance=student)
+    if request.method == "POST":
+        form = ChildDetailUpdateForm(request.POST, instance=student)
+        if form.is_valid():
+            form.save()
+            messages.success(
+                request, f"Details for {student.student_name} have been updated."
+            )
+            return redirect("my_account")
+    return render(
+        request,
+        "students/edit_student.html",
+        {"form": form, "student": student},
+    )
+
+
+@login_required
+def edit_emergency(request, pk):
+    """Parent self-service: keep emergency contact current for their child."""
+    student = _get_owned_student_or_403(request, pk)
+    contact = EmergencyContact.objects.filter(student=student).first()
+    form = EmergencyContactForm(instance=contact)
+    if request.method == "POST":
+        form = EmergencyContactForm(request.POST, instance=contact)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.student = student
+            obj.save()
+            messages.success(
+                request, "Emergency contact updated for " + student.student_name + "."
+            )
+            return redirect("my_account")
+    return render(
+        request,
+        "students/edit_emergency.html",
+        {"form": form, "student": student},
+    )
+
+
+@login_required
+def edit_medical(request, pk):
+    """Parent self-service: keep medical / special-requirements info current."""
+    student = _get_owned_student_or_403(request, pk)
+    medical = MedicalInfo.objects.filter(student=student).first()
+    form = MedicalInfoForm(instance=medical)
+    if request.method == "POST":
+        form = MedicalInfoForm(request.POST, instance=medical)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.student = student
+            obj.save()
+            messages.success(
+                request, "Medical info updated for " + student.student_name + "."
+            )
+            return redirect("my_account")
+    return render(
+        request,
+        "students/edit_medical.html",
+        {"form": form, "student": student},
     )
 
 
