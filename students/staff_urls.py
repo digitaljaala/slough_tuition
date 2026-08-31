@@ -11,4 +11,5 @@ urlpatterns = [
     path("assessments/", staff_views.assessment_list, name="staff_assessment_list"),
     path("assessments/new/", staff_views.assessment_create, name="staff_assessment_create"),
     path("students/", staff_views.student_list, name="staff_student_list"),
+    path("parents/reset/", staff_views.staff_reset_parent, name="staff_reset_parent"),
 ]

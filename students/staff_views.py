@@ -2,10 +2,13 @@ from datetime import date, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import AssessmentForm, SessionForm
-from .models import Assessment, DeliveryType, Invoice, Session, Student
+from .models import Assessment, DeliveryType, Invoice, Parent, Session, Student, User
 
 
 def _is_console_user(user):
@@ -22,6 +25,9 @@ _console_required = user_passes_test(_is_console_user, login_url="login")
 
 def _is_superuser(user):
     return user.is_authenticated and user.is_superuser
+
+
+_superuser_required = user_passes_test(_is_superuser, login_url="login")
 
 
 @_console_required
@@ -220,5 +226,73 @@ def student_list(request):
         {
             "students": students,
             "console_active": "students",
+        },
+    )
+
+
+@_superuser_required
+def staff_reset_parent(request):
+    """Superuser tool: find a parent (even if they lost their email) and set a
+    fresh password for their login account. Creates a login account only when
+    the parent had none and their email is not already someone's login."""
+    q = request.GET.get("q", "").strip()
+    results = Parent.objects.none()
+    if q:
+        results = (
+            Parent.objects.filter(
+                Q(parent_name__icontains=q) | Q(email__icontains=q)
+            )
+            .select_related("user")
+            .order_by("parent_name")
+        )
+
+    if request.method == "POST":
+        parent_id = request.POST.get("parent_id")
+        password = request.POST.get("password1", "")
+        parent = get_object_or_404(Parent, pk=parent_id)
+        try:
+            validate_password(password, parent.user or User(email=parent.email or ""))
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+            return redirect(f"{request.path}?q={parent.email}")
+
+        if parent.user_id:
+            user = parent.user
+        elif parent.email:
+            taken = User.objects.filter(email__iexact=parent.email.strip()).exists()
+            if taken:
+                messages.error(
+                    request,
+                    f"A login account already exists for {parent.email}. "
+                    f"Duplicate prevented — do not create a second account.",
+                )
+                return redirect(f"{request.path}?q={parent.email}")
+            user = User.objects.create_user(
+                email=parent.email.strip(), password=password
+            )
+            parent.user = user
+            parent.save()
+        else:
+            messages.error(
+                request,
+                "This parent has no email on file, so no login account can be created.",
+            )
+            return redirect(f"{request.path}?q={parent.email}")
+
+        user.set_password(password)
+        user.save()
+        messages.success(
+            request,
+            f"Password reset for {parent.parent_name}. Login email: {user.email}",
+        )
+        return redirect(f"{request.path}?q={parent.email}")
+
+    return render(
+        request,
+        "staff/reset_parent.html",
+        {
+            "q": q,
+            "results": results,
+            "console_active": "parents",
         },
     )

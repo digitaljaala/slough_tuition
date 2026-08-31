@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from django import forms
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm
 from django.contrib.auth import password_validation
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -509,7 +509,10 @@ class UserRegistrationForm(forms.Form):
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
         if User.objects.filter(email=email).exists():
-            raise ValidationError("An account with this email already exists.")
+            raise ValidationError(
+                "An account with this email already exists. "
+                "Please log in, or use 'Forgot password?' if you've lost your details."
+            )
         return email
 
     def clean_password2(self):
@@ -524,6 +527,50 @@ class UserRegistrationForm(forms.Form):
         email = self.cleaned_data["email"]
         password = self.cleaned_data["password1"]
         return User.objects.create_user(email=email, password=password)
+
+
+class DuplicateSafePasswordResetForm(PasswordResetForm):
+    """Password reset that never resets the wrong (or a duplicated) account.
+
+    If the submitted email maps to more than one user account or more than one
+    parent profile, we refuse to send a reset link — that would guess which
+    record is the real one and could lock out / rewrite the wrong person's
+    credentials. Instead the view flags it for the centre to reconcile.
+    """
+
+    ambiguity = False
+    user_count = 0
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip().lower()
+        users = list(User.objects.filter(email=email))
+        self.user_count = len(users)
+        # Flag real duplicates at the account OR parent level so the centre is
+        # told to reconcile rather than us silently choosing one.
+        if len(users) > 1:
+            self.ambiguity = True
+            return email
+        if users:
+            parent_qs = self._parent_rows_for_email(email)
+            if parent_qs.count() > 1:
+                self.ambiguity = True
+        return email
+
+    def _parent_rows_for_email(self, email):
+        from .models import Parent
+
+        return Parent.objects.filter(email=email)
+
+    def get_users(self, email):
+        """Only yield the user when the email is unambiguous (one account)."""
+        users = list(User.objects.filter(email=email))
+        if len(users) != 1:
+            return iter(())
+        parent_qs = self._parent_rows_for_email(email)
+        # A single account whose parent profile is duplicated is still unsafe.
+        if parent_qs.count() > 1:
+            return iter(())
+        return iter(users)
 
 
 class LoginForm(AuthenticationForm):

@@ -28,6 +28,9 @@
         {% endif %}
         {% include "includes/form_field.html" with field=form.username %}
         {% include "includes/form_field.html" with field=form.password %}
+        <div class="text-right text-sm">
+          <a href="{% url 'password_reset' %}" class="font-semibold text-[#36827F] hover:underline">Forgot password?</a>
+        </div>
         <button type="submit" class="w-full rounded-full bg-[#E63946] px-6 py-3.5 font-bold text-white shadow-lg shadow-[#E63946]/20 transition hover:bg-[#c92f3b]">Log in</button>
       </form>
 

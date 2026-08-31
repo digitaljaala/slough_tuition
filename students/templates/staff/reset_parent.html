@@ -1,0 +1,73 @@
+{% extends 'staff/base.html' %}
+{% block page_title %}Reset a parent's password{% endblock %}
+{% block title %}Reset Parent Password | Staff Console{% endblock %}
+
+{% block content %}
+  <p class="mb-5 text-sm text-slate-600">
+    Use this to help a parent who has lost their login details. Search by name or email,
+    then set a fresh password. Only superusers can do this.
+  </p>
+
+  <form method="get" class="mb-6 flex max-w-xl gap-2">
+    <input
+      type="text" name="q" value="{{ q }}" placeholder="Search by name or email…"
+      class="w-full rounded-xl border border-[#262322]/15 bg-white px-4 py-2.5 text-sm focus:border-[#36827F] focus:outline-none"
+    >
+    <button type="submit" class="shrink-0 rounded-xl bg-[#36827F] px-5 py-2.5 font-bold text-white transition hover:bg-[#2a5f5d]">Search</button>
+  </form>
+
+  {% if q %}
+    <h2 class="mb-3 text-sm font-bold text-slate-700">Results for "{{ q }}"</h2>
+    <div class="overflow-hidden rounded-2xl border border-[#262322]/10 bg-white shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[680px] text-left text-sm">
+          <thead class="bg-[#F2E5D7]/60 text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th class="px-5 py-3 font-bold">Parent</th>
+              <th class="px-5 py-3 font-bold">Email</th>
+              <th class="px-5 py-3 font-bold">Login account</th>
+              <th class="px-5 py-3 font-bold">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#262322]/5">
+            {% for p in results %}
+              <tr class="hover:bg-[#F2E5D7]/30">
+                <td class="px-5 py-3 font-bold">{{ p.parent_name }}</td>
+                <td class="px-5 py-3 text-slate-600">{{ p.email|default:"—" }}</td>
+                <td class="px-5 py-3">
+                  {% if p.user_id %}
+                    <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">{{ p.user.email }}</span>
+                  {% else %}
+                    <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">No login yet</span>
+                  {% endif %}
+                </td>
+                <td class="px-5 py-3">
+                  <button
+                    type="button"
+                    onclick="document.getElementById('reset-{{ p.pk }}').classList.toggle('hidden')"
+                    class="rounded-lg border border-[#36827F] px-3 py-1.5 text-xs font-bold text-[#36827F] transition hover:bg-[#36827F] hover:text-white">
+                    Reset password
+                  </button>
+                  <form id="reset-{{ p.pk }}" method="post" class="mt-2 hidden">
+                    {% csrf_token %}
+                    <input type="hidden" name="parent_id" value="{{ p.pk }}">
+                    <div class="flex items-center gap-2">
+                      <input
+                        type="password" name="password1" required minlength="8"
+                        placeholder="New password" autocomplete="new-password"
+                        class="w-48 rounded-lg border border-[#262322]/15 px-3 py-1.5 text-sm focus:border-[#36827F] focus:outline-none"
+                      >
+                      <button type="submit" class="rounded-lg bg-[#E63946] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[#c92f3b]">Set</button>
+                    </div>
+                  </form>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td class="px-5 py-8 text-center text-slate-500" colspan="4">No parents matched "{{ q }}".</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

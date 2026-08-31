@@ -15,6 +15,7 @@ from .security import get_owned_queryset, raise_403_if_not_owned
 
 from .forms import (
     ChildDetailUpdateForm,
+    DuplicateSafePasswordResetForm,
     EmergencyContactForm,
     EnrolmentAgreementForm,
     LoginForm,
@@ -60,7 +61,24 @@ def register_student(request):
                 parent.user = request.user
                 parent.save()
             else:
-                parent = parent_form.save()
+                # Duplicate-safe: reuse an existing parent row with the same
+                # email instead of silently creating a second record for the
+                # same person (the usual cause of duplicated accounts).
+                email = (parent_form.cleaned_data.get("email") or "").strip().lower()
+                existing = Parent.objects.filter(
+                    email__iexact=email
+                ).first() if email else None
+                if existing:
+                    parent = existing
+                    # Refresh display fields from the new submission but keep
+                    # the row (and any linked user/children) intact.
+                    for field in ("parent_name", "phone_number", "address"):
+                        value = parent_form.cleaned_data.get(field)
+                        if value:
+                            setattr(parent, field, value)
+                    parent.save()
+                else:
+                    parent = parent_form.save()
             student = student_form.save(commit=False)
             student.parent = parent
             student.save()
@@ -133,6 +151,44 @@ def login_view(request):
             "form": form,
             "next_url": _safe_next(request, ""),
         },
+    )
+
+
+def reset_password(request):
+    """Duplicate-safe parent password reset entry point.
+
+    Uses DuplicateSafePasswordResetForm which refuses to send when an email
+    maps to more than one account/parent — the centre must reconcile first
+    rather than risk resetting the wrong person. We always show the neutral
+    'done' page (no account enumeration), but log duplicates for staff.
+    """
+    form = DuplicateSafePasswordResetForm(request.POST or None)
+    if form.is_valid():
+        if form.ambiguity:
+            import logging
+
+            logger = logging.getLogger("students.passwordreset")
+            logger.warning(
+                "Duplicate account/parent for reset email %s (%s user(s)); "
+                "sent no reset link. Centre must reconcile.",
+                form.cleaned_data.get("email"),
+                form.user_count or "?",
+            )
+            # Mirrors done-page to avoid revealing whether the email exists.
+            return redirect("password_reset_done")
+        # Send a real reset email to the single matching user.
+        form.save(
+            request=request,
+            use_https=request.is_secure(),
+            subject_template_name="registration/password_reset_subject.txt",
+            email_template_name="registration/password_reset_email.txt",
+            html_email_template_name="registration/password_reset_email.html",
+        )
+        return redirect("password_reset_done")
+    return render(
+        request,
+        "registration/password_reset_form.html",
+        {"form": form},
     )
 
 

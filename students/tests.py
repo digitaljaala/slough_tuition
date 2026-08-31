@@ -2,6 +2,7 @@ from datetime import date, timedelta
 import uuid
 
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 
@@ -820,3 +821,176 @@ class ParentSelfServiceEditTests(TestCase):
         )
         medical = MedicalInfo.objects.get(student=self.student)
         self.assertEqual(medical.details, "Asthma, needs inhaler nearby")
+
+
+class PasswordResetFlowTests(TestCase):
+    """Parent self-service password recovery is duplicate-safe."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="parent@example.com", password="StrongPass123!"
+        )
+        self.parent = Parent.objects.create(
+            user=self.user,
+            parent_name="Jane Parent",
+            email="parent@example.com",
+            phone_number="01753 000000",
+        )
+
+    def test_reset_page_renders_form(self):
+        response = self.client.get(reverse("password_reset"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Forgot your password")
+
+    def test_reset_sends_email_for_single_account(self):
+        response = self.client.post(
+            reverse("password_reset"), {"email": "parent@example.com"}
+        )
+        self.assertRedirects(response, reverse("password_reset_done"))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("/accounts/reset/", mail.outbox[0].body)
+        self.assertIn(self.user.email, mail.outbox[0].to)
+
+    def test_reset_does_not_email_when_parent_rows_duplicated(self):
+        Parent.objects.create(
+            parent_name="Jane Parent Copy",
+            email="parent@example.com",
+            phone_number="01753 111111",
+        )
+        response = self.client.post(
+            reverse("password_reset"), {"email": "parent@example.com"}
+        )
+        self.assertRedirects(response, reverse("password_reset_done"))
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_reset_does_not_email_for_unknown_email(self):
+        response = self.client.post(
+            reverse("password_reset"), {"email": "ghost@example.com"}
+        )
+        self.assertRedirects(response, reverse("password_reset_done"))
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_full_reset_flow_changes_password(self):
+        self.client.post(
+            reverse("password_reset"), {"email": "parent@example.com"}
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        body = mail.outbox[0].body
+        # Extract the reset link (http://testserver/accounts/reset/<uid>/<token>/)
+        line = next(l for l in body.splitlines() if "/accounts/reset/" in l)
+        url = line.strip()
+        path = url.replace("http://testserver", "").rstrip("/")
+        # Django rotates the reset URL to .../set-password/ and keeps the token
+        # in the session. Hit the token link to establish the session first,
+        # then POST the new password to the rotated URL.
+        self.client.get(path + "/")
+        base = path.rsplit("/", 1)[0]
+        resp = self.client.post(
+            base + "/set-password/",
+            {"new_password1": "NewStrongPass99!", "new_password2": "NewStrongPass99!"},
+        )
+        self.assertRedirects(resp, reverse("password_reset_complete"))
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("NewStrongPass99!"))
+        # And the old password no longer works.
+        self.client.logout()
+        ok = self.client.login(username="parent@example.com", password="NewStrongPass99!")
+        self.assertTrue(ok)
+
+
+class RegisterDedupeTests(TestCase):
+    """register_student must not create duplicate Parent rows by email."""
+
+    def test_unauthenticated_enrolment_reuses_existing_parent_by_email(self):
+        existing = Parent.objects.create(
+            parent_name="Old Name",
+            email="same@example.com",
+            phone_number="01753 444444",
+        )
+        self.client.post(
+            reverse("register_student"),
+            {
+                "parent_name": "New Name",
+                "email": "SAME@example.com",
+                "phone_number": "01753 555555",
+                "address": "1 High St",
+                "student_name": "Child One",
+                "date_of_birth": "2012-05-10",
+                "year_group": "Year 5",
+                "subjects": "11_plus",
+                "school_name": "St Ethelbert's",
+                "relationship_to_student": "Mother",
+            },
+        )
+        self.assertEqual(Parent.objects.filter(email__iexact="same@example.com").count(), 1)
+        existing.refresh_from_db()
+        # Reused the existing row and refreshed display fields; no duplicate.
+        self.assertEqual(existing.parent_name, "New Name")
+        self.assertEqual(Student.objects.filter(parent=existing).count(), 1)
+
+
+class StaffResetParentTests(TestCase):
+    """Superuser-only tool to find a parent and reset their login password."""
+
+    def setUp(self):
+        self.superuser = User.objects.create_superuser(
+            email="admin@example.com", password="AdminPass123!"
+        )
+        self.parent_user = User.objects.create_user(
+            email="parent@example.com", password="OldPass123!"
+        )
+        self.parent = Parent.objects.create(
+            user=self.parent_user,
+            parent_name="Jane Parent",
+            email="parent@example.com",
+            phone_number="01753 000000",
+        )
+        self.url = reverse("staff_reset_parent")
+
+    def test_normal_staff_cannot_access(self):
+        staff = User.objects.create_user(email="staff@example.com", password="StaffPass123!")
+        self.client.force_login(staff)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+
+    def test_superuser_can_search_and_reset(self):
+        self.client.force_login(self.superuser)
+        page = self.client.get(self.url, {"q": "Jane"})
+        self.assertContains(page, "Jane Parent")
+
+        response = self.client.post(
+            self.url,
+            {"parent_id": self.parent.pk, "password1": "FreshPass123!"},
+        )
+        self.parent_user.refresh_from_db()
+        self.assertTrue(self.parent_user.check_password("FreshPass123!"))
+        self.assertRedirects(
+            response, self.url + "?q=parent@example.com"
+        )
+
+    def test_superuser_can_create_login_for_parent_without_user(self):
+        orphan = Parent.objects.create(
+            parent_name="Lost Parent",
+            email="lost@example.com",
+            phone_number="01753 222222",
+        )
+        self.client.force_login(self.superuser)
+        self.client.post(
+            self.url,
+            {"parent_id": orphan.pk, "password1": "FreshPass123!"},
+        )
+        orphan.refresh_from_db()
+        self.assertIsNotNone(orphan.user)
+        self.assertTrue(orphan.user.check_password("FreshPass123!"))
+        self.assertEqual(orphan.user.email, "lost@example.com")
+
+    def test_superuser_links_existing_user_not_second_account(self):
+        # Parent shares an email with an existing login user.
+        self.assertEqual(self.parent.user_id, self.parent_user.pk)
+        self.client.force_login(self.superuser)
+        self.client.post(
+            self.url,
+            {"parent_id": self.parent.pk, "password1": "FreshPass123!"},
+        )
+        users = User.objects.filter(email="parent@example.com")
+        self.assertEqual(users.count(), 1)
