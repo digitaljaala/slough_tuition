@@ -645,3 +645,59 @@ class BookingBlockTests(TestCase):
         invoices = Invoice.objects.filter(student=self.home_student).order_by("id")
         self.assertEqual(invoices.count(), 2)
         self.assertEqual(invoices[1].amount, Decimal("30.00"))
+
+
+class LoginRedirectTests(TestCase):
+    """Option B: parents land straight on the account page after login."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="parent@example.com", password="StrongPass123!"
+        )
+        self.parent = Parent.objects.create(
+            user=self.user,
+            parent_name="Jane Parent",
+            email="parent@example.com",
+            phone_number="01753 000000",
+        )
+
+    def test_parent_with_profile_redirects_to_account(self):
+        response = self.client.post(
+            reverse("login"),
+            {"username": "parent@example.com", "password": "StrongPass123!"},
+        )
+        self.assertRedirects(response, reverse("my_account"))
+
+    def test_user_without_parent_profile_redirects_to_home(self):
+        User.objects.create_user(
+            email="nobody@example.com", password="StrongPass123!"
+        )
+        response = self.client.post(
+            reverse("login"),
+            {"username": "nobody@example.com", "password": "StrongPass123!"},
+        )
+        self.assertRedirects(response, reverse("home"))
+
+    def test_next_param_takes_priority(self):
+        response = self.client.post(
+            reverse("login"),
+            {"username": "parent@example.com", "password": "StrongPass123!",
+             "next": reverse("my_account") + "#invoices"},
+        )
+        self.assertRedirects(response, reverse("my_account") + "#invoices")
+
+    def test_welcome_note_uses_parent_name_not_email(self):
+        User.objects.create_user(
+            email="nobody@example.com", password="StrongPass123!"
+        )
+        self.client.login(username="nobody@example.com", password="StrongPass123!")
+        # Bind a parent profile then log in via POST to capture the message.
+        self.client.logout()
+        response = self.client.post(
+            reverse("login"),
+            {"username": "parent@example.com", "password": "StrongPass123!"},
+        )
+        # Follow redirect to account page and confirm the greeting uses the name.
+        response = self.client.get(response.url)
+        self.assertContains(response, "Welcome back, Jane Parent")
+        self.assertNotContains(response, "Welcome back, parent@example.com")

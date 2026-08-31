@@ -113,7 +113,16 @@ def login_view(request):
                 request,
                 f"Welcome back, {_display_name(user)}!",
             )
-            return redirect(_safe_next(request, reverse("home")))
+            # Option B: land parents straight on their account page, but keep
+            # the `next` target (staff/admin consoles) and fall back to home
+            # for users without a parent profile.
+            landing = _safe_next(request, "")
+            if not landing:
+                if Parent.objects.filter(user=user).exists():
+                    landing = reverse("my_account")
+                else:
+                    landing = reverse("home")
+            return redirect(landing)
     return render(
         request,
         "students/login.html",
