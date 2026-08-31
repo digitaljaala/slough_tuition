@@ -292,12 +292,22 @@ class ParentContactUpdateForm(StyledModelForm):
 
     def clean_email(self):
         email = (self.cleaned_data.get("email") or "").strip().lower()
-        # Keep it unique unless it's the same contact already in use.
+        # Keep it unique across parent profiles unless it's the same contact.
         qs = Parent.objects.filter(email=email)
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
         if email and qs.exists():
             raise ValidationError("Another account already uses this email.")
+        # The submitted email will also become this parent's LOGIN email (as
+        # the account uses email as username), so it must not be another
+        # user's login — otherwise two accounts would share a login.
+        if email:
+            own_user = self.instance.user_id if self.instance.pk else None
+            login = User.objects.filter(email=email).exclude(pk=own_user)
+            if login.exists():
+                raise ValidationError(
+                    "This email is already used to log in to another account."
+                )
         return email
 
 

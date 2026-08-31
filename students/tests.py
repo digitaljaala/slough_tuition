@@ -822,6 +822,35 @@ class ParentSelfServiceEditTests(TestCase):
         medical = MedicalInfo.objects.get(student=self.student)
         self.assertEqual(medical.details, "Asthma, needs inhaler nearby")
 
+    def test_changing_parent_email_syncs_login_user(self):
+        self.client.post(
+            reverse("edit_parent"),
+            {
+                "phone_number": self.parent.phone_number,
+                "email": "newlogin@example.com",
+                "address": self.parent.address,
+            },
+        )
+        self.parent.refresh_from_db()
+        self.assertEqual(self.parent.email, "newlogin@example.com")
+        # The user's login email follows the parent email (email == username).
+        self.assertEqual(self.parent.user.email, "newlogin@example.com")
+
+    def test_cannot_use_another_accounts_login_email(self):
+        response = self.client.post(
+            reverse("edit_parent"),
+            {
+                "phone_number": self.parent.phone_number,
+                "email": "other@example.com",  # the other parent's login
+                "address": self.parent.address,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.parent.refresh_from_db()
+        # Rejected: email left untouched and login not clobbered.
+        self.assertEqual(self.parent.email, "owner@example.com")
+        self.assertEqual(self.parent.user.email, "owner@example.com")
+
 
 class PasswordResetFlowTests(TestCase):
     """Parent self-service password recovery is duplicate-safe."""

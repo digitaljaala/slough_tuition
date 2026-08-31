@@ -35,11 +35,20 @@ Each line = one commit-ready unit of work. Mark [x] when done.
 - [ ] 12. Reports / export — CSV + summary.
 ### Parent portal
 - [ ] 13. Parent sees own invoice / assessment history.
+### Parent account & password recovery (separate, user-requested)
+- [x] 14. Self-service forgot-password flow (reset email + set new password), link on login page; parent addressed by name.
+- [x] 15. Duplicate-safe reset — only fires when email maps to exactly one account+parent row, else logged for centre (never a wrong-person reset or new record).
+- [x] 16. Block re-registration with a used email + guide to login/reset; `register_student` dedupes parent rows by email (reuses, never duplicates).
+- [x] 17. `reconcile_parents` command to merge existing duplicates + link orphan parents (`--commit`, `--verbose`; applied to live DB).
+- [x] 18. Staff tool (superuser-only) to find a parent by name/email and reset their password / create a login if none.
+- [x] 19. Parent self-service `edit_parent` keeps contact email and login email in sync (User.email == Parent.email), and rejects emails already used as another account's login.
+- [x] 20. Email/login desync bug fixed: changing parent email now updates the login User too (was the last open loose end in this section).
 
 ## Work state
 - Module 1 (billing foundation): DONE & pushed.
 - Module 2 (staff console: sessions/assessments/students): DONE, browser-verified, pushed.
 - Sub-modules 1-3 (bookable list UI + centre block consumption + home per-session billing): DONE (38 tests), browser-verified.
-- 38 tests passing. Tailwind compiled after template changes.
+- Parent account & password recovery (sub-modules 14-20) + email/login sync fix: DONE (61 tests), browser-verified, pushed.
+- 61 tests passing. Tailwind compiled after template changes.
 - .env holds PLACEHOLDER email creds (console fallback mode until real IONOS creds filled in).
-- DB: Postgres `slough_tuition` @ localhost; superuser admin@example.com; staff staff@example.com / StaffPass123!.
+- DB: Postgres `slough_tuition` @ localhost; superuser admin@example.com / AdminPass123! (password reset for QA; change if needed); staff staff@example.com / StaffPass123!.

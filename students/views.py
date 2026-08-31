@@ -239,7 +239,14 @@ def edit_parent(request):
     if request.method == "POST":
         form = ParentContactUpdateForm(request.POST, instance=parent)
         if form.is_valid():
-            form.save()
+            parent = form.save()
+            # Keep login and contact email in sync: the account uses email as
+            # its username, so update the linked User's email to match.
+            if parent.user_id:
+                new_email = (parent.email or "").strip().lower()
+                if (parent.user.email or "").strip().lower() != new_email:
+                    parent.user.email = new_email
+                    parent.user.save(update_fields=["email"])
             messages.success(request, "Your contact details have been updated.")
             return redirect("my_account")
     return render(
