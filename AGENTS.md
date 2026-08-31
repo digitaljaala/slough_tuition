@@ -49,7 +49,7 @@ Each line = one commit-ready unit of work. Mark [x] when done.
 - Module 2 (staff console: sessions/assessments/students): DONE, browser-verified, pushed.
 - Sub-modules 1-3 (bookable list UI + centre block consumption + home per-session billing): DONE (38 tests), browser-verified.
 - Parent account & password recovery (sub-modules 14-20) + email/login sync fix: DONE (61 tests), browser-verified, pushed.
-- Assessment + PDF (sub-modules 6-8): DONE (edit/delete history, reportlab PDF, email attach), 66 tests passing, pushed. NOTE: assessment `percentage` set only via `AssessmentForm.clean()`; direct `Assessment.objects.create()` leaves it NULL.
+- Assessment + PDF (sub-modules 6-8): DONE (edit/delete history, reportlab PDF, email attach), 66 tests passing, browser-verified, pushed. NOTE: assessment `percentage` set only via `AssessmentForm.clean()`; direct `Assessment.objects.create()` leaves it NULL.
 - 66 tests passing. Tailwind compiled after template changes.
 - .env holds PLACEHOLDER email creds (console fallback mode until real IONOS creds filled in).
 - DB: Postgres `slough_tuition` @ localhost; superuser admin@example.com / AdminPass123! (password reset for QA; change if needed); staff staff@example.com / StaffPass123!.
