@@ -1,0 +1,21 @@
+{% extends 'staff/base.html' %}
+{% block page_title %}Delete assessment{% endblock %}
+{% block title %}Delete assessment | Staff Console{% endblock %}
+
+{% block content %}
+  <div class="max-w-lg rounded-2xl border border-[#262322]/10 bg-white p-6 shadow-sm md:p-8">
+    <h2 class="text-lg font-black text-[#262322]">Delete this assessment?</h2>
+    <p class="mt-2 text-sm text-slate-600">
+      This will permanently delete the <strong>{{ assessment.subject }}</strong> assessment
+      for <strong>{{ assessment.student.student_name }}</strong> from
+      {{ assessment.assessment_date|date:"d M Y" }}.
+    </p>
+    <form method="post" class="mt-6">
+      {% csrf_token %}
+      <div class="flex items-center gap-3">
+        <button class="rounded-full bg-[#E63946] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#c02836]">Delete assessment</button>
+        <a href="{% url 'staff_student_assessments' assessment.student_id %}" class="rounded-full border border-[#262322]/15 px-6 py-3 text-sm font-bold text-[#262322] transition hover:bg-[#F2E5D7]">Cancel</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

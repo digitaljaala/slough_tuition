@@ -15,6 +15,7 @@
             <th class="px-5 py-3 font-bold">Delivery</th>
             <th class="px-5 py-3 font-bold">Payment plan</th>
             <th class="px-5 py-3 font-bold">Parent</th>
+            <th class="px-5 py-3 font-bold"></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-[#262322]/5">
@@ -27,9 +28,12 @@
               </td>
               <td class="px-5 py-3 text-slate-600">{{ stu.payment_plan.name|default:"—" }}</td>
               <td class="px-5 py-3 text-slate-600">{{ stu.parent.parent_name }}</td>
+              <td class="px-5 py-3">
+                <a href="{% url 'staff_student_assessments' stu.pk %}" class="rounded-full border border-[#36827F] px-3 py-1 text-xs font-bold text-[#36827F] hover:bg-[#36827F]/10">History</a>
+              </td>
             </tr>
           {% empty %}
-            <tr><td class="px-5 py-8 text-center text-slate-500" colspan="5">No students yet.</td></tr>
+            <tr><td class="px-5 py-8 text-center text-slate-500" colspan="6">No students yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>

@@ -23,7 +23,7 @@
         <button class="rounded-full bg-[#36827F] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#2a5f5d]">
           Save assessment
         </button>
-        <a href="{% url 'staff_assessment_list' %}" class="rounded-full border border-[#262322]/15 px-6 py-3 text-sm font-bold text-[#262322] transition hover:bg-[#F2E5D7]">Cancel</a>
+        <a href="{% if assessment %}{% url 'staff_student_assessments' assessment.student_id %}{% else %}{% url 'staff_assessment_list' %}{% endif %}" class="rounded-full border border-[#262322]/15 px-6 py-3 text-sm font-bold text-[#262322] transition hover:bg-[#F2E5D7]">Cancel</a>
       </div>
     </form>
   </div>

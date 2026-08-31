@@ -4,11 +4,15 @@ from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.core.mail import EmailMessage
 from django.db.models import Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 
 from .forms import AssessmentForm, SessionForm
 from .models import Assessment, DeliveryType, Invoice, Parent, Session, Student, User
+from .pdf import build_assessment_pdf
 
 
 def _is_console_user(user):
@@ -296,3 +300,108 @@ def staff_reset_parent(request):
             "console_active": "parents",
         },
     )
+
+
+@_console_required
+def assessment_edit(request, pk):
+    assessment = get_object_or_404(Assessment, pk=pk)
+    form = AssessmentForm(instance=assessment)
+    if request.method == "POST":
+        form = AssessmentForm(request.POST, instance=assessment)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Assessment updated.")
+            return redirect("staff_student_assessments", pk=assessment.student_id)
+    return render(
+        request,
+        "staff/assessment_form.html",
+        {
+            "form": form,
+            "title": "Edit assessment",
+            "console_active": "assessments",
+            "assessment": assessment,
+        },
+    )
+
+
+@_console_required
+def assessment_delete(request, pk):
+    assessment = get_object_or_404(Assessment, pk=pk)
+    if request.method == "POST":
+        student_pk = assessment.student_id
+        assessment.delete()
+        messages.success(request, "Assessment deleted.")
+        return redirect("staff_student_assessments", pk=student_pk)
+    return render(
+        request,
+        "staff/assessment_confirm_delete.html",
+        {"assessment": assessment, "console_active": "assessments"},
+    )
+
+
+@_console_required
+def student_assessments(request, pk):
+    """Per-student assessment history; the natural home for edit/PDF/email and
+    the 'assessment polish' view the centre sees."""
+    student = get_object_or_404(Student, pk=pk)
+    assessments = student.assessments.select_related("student").order_by(
+        "-assessment_date"
+    )
+    scored = [a for a in assessments if a.percentage is not None]
+    avg_percentage = None
+    if scored:
+        avg_percentage = sum(a.percentage for a in scored) / len(scored)
+    return render(
+        request,
+        "staff/assessment_history.html",
+        {
+            "student": student,
+            "assessments": assessments,
+            "avg_percentage": avg_percentage,
+            "scored_count": len(scored),
+            "console_active": "assessments",
+        },
+    )
+
+
+@_console_required
+def assessment_report(request, pk):
+    """Item 7: download a clean, mobile-friendly one-page PDF report."""
+    assessment = get_object_or_404(Assessment, pk=pk)
+    filename = f"assessment_{assessment.student_id}_{assessment.pk}.pdf"
+    response = HttpResponse(
+        build_assessment_pdf(assessment), content_type="application/pdf"
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@_console_required
+def assessment_email(request, pk):
+    """Item 8: email the PDF report to the student's parent as an attachment."""
+    assessment = get_object_or_404(
+        Assessment.objects.select_related("student__parent", "student"), pk=pk
+    )
+    parent = assessment.student.parent
+    if not parent or not parent.email:
+        messages.error(
+            request, "No parent email on file to send the report to."
+        )
+        return redirect("staff_student_assessments", pk=assessment.student_id)
+    subject = (
+        f"Assessment report for {assessment.student.student_name} "
+        f"- {assessment.subject}"
+    )
+    body = render_to_string(
+        "staff/assessment_email.txt",
+        {"assessment": assessment, "parent": parent},
+    )
+    email = EmailMessage(subject=subject, body=body, to=[parent.email])
+    email.attach(
+        f"assessment_{assessment.student_id}.pdf",
+        build_assessment_pdf(assessment),
+        "application/pdf",
+    )
+    email.send()
+    messages.success(request, f"Report emailed to {parent.email}.")
+    return redirect("staff_student_assessments", pk=assessment.student_id)

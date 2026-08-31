@@ -24,6 +24,7 @@
               {{ a.marks }}{% if a.max_marks %}/{{ a.max_marks }}{% endif %}{% if a.percentage %} · {{ a.percentage|floatformat:0 }}%{% endif %}
             </span>
           {% endif %}
+          <a href="{% url 'staff_student_assessments' a.student_id %}" class="rounded-full border border-[#36827F] px-3 py-1 text-sm font-bold text-[#36827F] hover:bg-[#36827F]/10">History</a>
         </div>
         {% if a.topics %}
           <p class="mt-3 text-sm text-slate-600"><span class="font-semibold">Topics:</span> {{ a.topics }}</p>

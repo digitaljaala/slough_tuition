@@ -1023,3 +1023,113 @@ class StaffResetParentTests(TestCase):
         )
         users = User.objects.filter(email="parent@example.com")
         self.assertEqual(users.count(), 1)
+
+
+class AssessmentCrudTests(TestCase):
+    """Items 6-8: edit/update, per-student history, PDF report, email to parent."""
+
+    def setUp(self):
+        self.staff_group, _ = Group.objects.get_or_create(
+            name="Staff (sessions & assessments)"
+        )
+        self.staff = User.objects.create_user(
+            email="staff@example.com", password="StaffPass123!"
+        )
+        self.staff.groups.add(self.staff_group)
+
+        user = User.objects.create_user(
+            email="parent@example.com", password="xPass123!"
+        )
+        self.parent = Parent.objects.create(
+            user=user,
+            parent_name="Assessment Parent",
+            email="parent@example.com",
+            phone_number="01753 000000",
+        )
+        self.student = Student.objects.create(
+            parent=self.parent,
+            student_name="Assessment Child",
+            year_group="Year 8",
+        )
+        self.assessment = Assessment.objects.create(
+            student=self.student,
+            subject="gcse_maths",
+            assessment_date="2026-09-01",
+            topics="Algebra",
+            max_marks=20,
+            marks=16,
+            percentage=Decimal("80.0"),
+            tutor_notes="Doing well.",
+        )
+        self.client.login(username="staff@example.com", password="StaffPass123!")
+
+    def test_edit_assessment_updates_record(self):
+        response = self.client.post(
+            reverse("staff_assessment_edit", args=[self.assessment.pk]),
+            {
+                "student": self.student.pk,
+                "subject": "gcse_maths",
+                "assessment_date": "2026-09-01",
+                "topics": "Algebra, Quadratics",
+                "max_marks": "20",
+                "marks": "18",
+                "tutor_notes": "Improved.",
+            },
+        )
+        self.assertRedirects(
+            response, reverse("staff_student_assessments", args=[self.student.pk])
+        )
+        self.assessment.refresh_from_db()
+        self.assertEqual(self.assessment.marks, 18)
+        self.assertEqual(self.assessment.topics, "Algebra, Quadratics")
+
+    def test_delete_assessment(self):
+        self.client.post(reverse("staff_assessment_delete", args=[self.assessment.pk]))
+        self.assertFalse(Assessment.objects.filter(pk=self.assessment.pk).exists())
+
+    def test_history_view_shows_average(self):
+        Assessment.objects.create(
+            student=self.student,
+            subject="gcse_english",
+            assessment_date="2026-09-10",
+            max_marks=10,
+            marks=8,
+            percentage=Decimal("80.0"),
+        )
+        response = self.client.get(
+            reverse("staff_student_assessments", args=[self.student.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "staff/assessment_history.html")
+        self.assertContains(response, "80.0")
+        self.assertContains(response, "gcse_english")
+
+    def test_pdf_report_download(self):
+        response = self.client.get(
+            reverse("staff_assessment_report", args=[self.assessment.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF"))
+
+    def test_email_assessment_to_parent(self):
+        from django.core import mail
+
+        response = self.client.get(
+            reverse("staff_assessment_email", args=[self.assessment.pk])
+        )
+        self.assertRedirects(
+            response, reverse("staff_student_assessments", args=[self.student.pk])
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(sent.to, ["parent@example.com"])
+        self.assertIn(self.assessment.student.student_name, sent.subject)
+        self.assertTrue(
+            any(
+                isinstance(att, tuple)
+                and len(att) == 3
+                and att[2] == "application/pdf"
+                for att in sent.attachments
+            )
+        )

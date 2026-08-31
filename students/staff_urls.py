@@ -10,6 +10,11 @@ urlpatterns = [
     path("sessions/<int:pk>/edit/", staff_views.session_edit, name="staff_session_edit"),
     path("assessments/", staff_views.assessment_list, name="staff_assessment_list"),
     path("assessments/new/", staff_views.assessment_create, name="staff_assessment_create"),
+    path("assessments/<int:pk>/edit/", staff_views.assessment_edit, name="staff_assessment_edit"),
+    path("assessments/<int:pk>/delete/", staff_views.assessment_delete, name="staff_assessment_delete"),
+    path("assessments/<int:pk>/report/", staff_views.assessment_report, name="staff_assessment_report"),
+    path("assessments/<int:pk>/email/", staff_views.assessment_email, name="staff_assessment_email"),
+    path("students/<int:pk>/assessments/", staff_views.student_assessments, name="staff_student_assessments"),
     path("students/", staff_views.student_list, name="staff_student_list"),
     path("parents/reset/", staff_views.staff_reset_parent, name="staff_reset_parent"),
 ]

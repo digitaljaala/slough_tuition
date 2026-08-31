@@ -25,9 +25,9 @@ Each line = one commit-ready unit of work. Mark [x] when done.
 - [ ] 4. Custom/override deals — booking against a manually-priced plan / custom_price.
 - [ ] 5. Block renewal / reset — when a block is fully consumed, prompt to charge a new block and reset `sessions_used_in_block`.
 ### Assessment + PDF
-- [ ] 6. Assessment polish — edit/update, save history view.
-- [ ] 7. Mobile-friendly PDF report (weasyprint or reportlab).
-- [ ] 8. Email PDF to parent (attachment).
+- [x] 6. Assessment polish — edit/update, save history view.
+- [x] 7. Mobile-friendly PDF report (weasyprint or reportlab).
+- [x] 8. Email PDF to parent (attachment).
 ### Billing (superuser only)
 - [ ] 9. Invoices list — filter by plan/status, outstanding balances.
 - [ ] 10. Invoice generation from consumed sessions.
@@ -49,6 +49,7 @@ Each line = one commit-ready unit of work. Mark [x] when done.
 - Module 2 (staff console: sessions/assessments/students): DONE, browser-verified, pushed.
 - Sub-modules 1-3 (bookable list UI + centre block consumption + home per-session billing): DONE (38 tests), browser-verified.
 - Parent account & password recovery (sub-modules 14-20) + email/login sync fix: DONE (61 tests), browser-verified, pushed.
-- 61 tests passing. Tailwind compiled after template changes.
+- Assessment + PDF (sub-modules 6-8): DONE (edit/delete history, reportlab PDF, email attach), 66 tests passing, pushed. NOTE: assessment `percentage` set only via `AssessmentForm.clean()`; direct `Assessment.objects.create()` leaves it NULL.
+- 66 tests passing. Tailwind compiled after template changes.
 - .env holds PLACEHOLDER email creds (console fallback mode until real IONOS creds filled in).
 - DB: Postgres `slough_tuition` @ localhost; superuser admin@example.com / AdminPass123! (password reset for QA; change if needed); staff staff@example.com / StaffPass123!.
