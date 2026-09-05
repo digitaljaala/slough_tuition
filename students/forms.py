@@ -11,6 +11,8 @@ from django.utils import timezone
 
 from .models import (
     Assessment,
+    AssessmentSubject,
+    Centre,
     EmergencyContact,
     EnrolmentAgreement,
     MedicalInfo,
@@ -57,6 +59,32 @@ SUBJECT_CHOICES = [
     ("gcse_english_literature", "GCSE English Literature"),
     ("as_a_level", "AS/A Level"),
 ]
+
+# Real subject names for assessments (maths, english, science, reasoning, ...).
+ASSESSMENT_SUBJECT_CHOICES = [
+    ("", "Select subject"),
+    ("Mathematics", "Mathematics"),
+    ("English", "English"),
+    ("English Language", "English Language"),
+    ("English Literature", "English Literature"),
+    ("Science", "Science"),
+    ("Biology", "Biology"),
+    ("Chemistry", "Chemistry"),
+    ("Physics", "Physics"),
+    ("Verbal Reasoning", "Verbal Reasoning"),
+    ("Non-Verbal Reasoning", "Non-Verbal Reasoning"),
+    ("Other", "Other"),
+]
+
+# Year / class levels for each assessment subject line. Mirrors YEAR_GROUP_CHOICES
+# but with a matching empty label so each block reads "Year / Class".
+ASSESSMENT_LEVEL_CHOICES = [
+    ("", "Select year / class"),
+    *YEAR_GROUP_CHOICES[1:],
+]
+
+# How many subject blocks an assessment form exposes.
+MAX_ASSESSMENT_SUBJECTS = 8
 
 RELATIONSHIP_CHOICES = [
     ("", "Select relationship"),
@@ -170,6 +198,13 @@ class StudentForm(StyledModelForm):
         choices=SUBJECT_CHOICES,
         widget=forms.RadioSelect(attrs={"class": "h-5 w-5 text-[#36827F]"}),
     )
+    centre = forms.ModelChoiceField(
+        label="Which tuition centre?",
+        queryset=Centre.objects.filter(is_active=True),
+        empty_label="Select a centre",
+        required=True,
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
 
     class Meta:
         model = Student
@@ -236,6 +271,8 @@ class StudentForm(StyledModelForm):
         student = super().save(commit=False)
         subject = self.cleaned_data.get("subjects")
         student.subjects = [subject] if subject else []
+        if self.cleaned_data.get("centre"):
+            student.centre = self.cleaned_data["centre"]
         if commit:
             student.save()
         return student
@@ -654,8 +691,10 @@ class SessionForm(StyledModelForm):
             ),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, student_queryset=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if student_queryset is not None:
+            self.fields["student"].queryset = student_queryset
         self.fields["session_date"].input_formats = ["%Y-%m-%d"]
         # duration is stored as timedelta; expose as HH:MM via TimeInput.
         if self.instance.pk and self.instance.duration:
@@ -683,21 +722,12 @@ class SessionForm(StyledModelForm):
         )
 
 
-class AssessmentForm(StyledModelForm):
-    subject = forms.ChoiceField(
-        choices=SUBJECT_CHOICES,
-        widget=forms.Select(attrs={"class": INPUT_CLASS}),
-    )
-
+class AssessmentForm(forms.ModelForm):
     class Meta:
         model = Assessment
         fields = (
             "student",
-            "subject",
             "assessment_date",
-            "topics",
-            "max_marks",
-            "marks",
             "tutor_notes",
         )
         widgets = {
@@ -706,33 +736,128 @@ class AssessmentForm(StyledModelForm):
                 format="%Y-%m-%d",
                 attrs={"class": INPUT_CLASS, "type": "date"},
             ),
-            "topics": forms.TextInput(
-                attrs={"class": INPUT_CLASS, "placeholder": "Topics covered (optional)"}
-            ),
-            "max_marks": forms.NumberInput(attrs={"class": INPUT_CLASS}),
-            "marks": forms.NumberInput(attrs={"class": INPUT_CLASS}),
             "tutor_notes": forms.Textarea(
-                attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Tutor notes"}
+                attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Teacher notes (optional)"}
             ),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, student_queryset=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if student_queryset is not None:
+            self.fields["student"].queryset = student_queryset
         self.fields["assessment_date"].input_formats = ["%Y-%m-%d"]
         self.fields["assessment_date"].initial = timezone.localdate
-        self.fields["topics"].required = False
-        self.fields["max_marks"].required = False
-        self.fields["marks"].required = False
         self.fields["tutor_notes"].required = False
+
+        existing = []
+        if self.instance.pk:
+            existing = list(self.instance.subjects.all())
+
+        for i in range(1, MAX_ASSESSMENT_SUBJECTS + 1):
+            row = existing[i - 1] if i - 1 < len(existing) else None
+            self.fields[f"year_group_{i}"] = forms.ChoiceField(
+                required=False,
+                label="Year / Class",
+                choices=ASSESSMENT_LEVEL_CHOICES,
+                widget=forms.Select(attrs={"class": INPUT_CLASS}),
+                initial=row.year_group if row else "",
+            )
+            self.fields[f"subject_{i}"] = forms.ChoiceField(
+                required=False,
+                label="Subject",
+                choices=ASSESSMENT_SUBJECT_CHOICES,
+                widget=forms.Select(attrs={"class": INPUT_CLASS}),
+                initial=row.subject if row else "",
+            )
+            self.fields[f"marks_{i}"] = forms.IntegerField(
+                required=False,
+                label="Marks",
+                min_value=0,
+                widget=forms.NumberInput(
+                    attrs={"class": INPUT_CLASS, "placeholder": "Score"}
+                ),
+                initial=row.marks if row else None,
+            )
+            self.fields[f"max_marks_{i}"] = forms.IntegerField(
+                required=False,
+                label="Out of",
+                min_value=1,
+                widget=forms.NumberInput(
+                    attrs={"class": INPUT_CLASS, "placeholder": "Optional"}
+                ),
+                initial=row.max_marks if row else None,
+            )
+
+        # Apply the StyledModelForm error-highlighting now that every field
+        # (including the dynamically-added subject blocks) is in place. This
+        # is inlined here because the base StyledModelForm touches `self.errors`
+        # during __init__, which would run clean() before the subject fields
+        # exist and cache a bogus "record at least one subject" error.
+        for name, field in self.fields.items():
+            if self.errors.get(name):
+                css = field.widget.attrs.get("class", INPUT_CLASS)
+                field.widget.attrs["class"] = f"{css} {ERROR_CLASS}"
+
+    def _subject_rows(self):
+        """Collect the non-empty subject blocks as clean dicts."""
+        rows = []
+        for i in range(1, MAX_ASSESSMENT_SUBJECTS + 1):
+            year_group = self.cleaned_data.get(f"year_group_{i}")
+            subject = self.cleaned_data.get(f"subject_{i}")
+            marks = self.cleaned_data.get(f"marks_{i}")
+            max_marks = self.cleaned_data.get(f"max_marks_{i}")
+
+            if not year_group and not subject and marks is None and not max_marks:
+                continue
+
+            if not subject:
+                self.add_error(f"subject_{i}", "Select a subject for this block.")
+                continue
+
+            if max_marks is not None and marks is not None and marks > max_marks:
+                self.add_error(f"marks_{i}", "Marks cannot exceed the maximum.")
+                continue
+
+            percentage = None
+            if marks is not None:
+                if max_marks:
+                    percentage = (Decimal(marks) / Decimal(max_marks)) * 100
+                else:
+                    # No "out of" given -> treat the mark as a percentage (0-100).
+                    percentage = Decimal(marks)
+
+            rows.append(
+                {
+                    "year_group": year_group or "",
+                    "subject": subject,
+                    "max_marks": max_marks,
+                    "marks": marks,
+                    "percentage": percentage,
+                }
+            )
+        return rows
 
     def clean(self):
         cleaned = super().clean()
-        marks = cleaned.get("marks")
-        max_marks = cleaned.get("max_marks")
-        if marks and max_marks and marks > max_marks:
+        rows = self._subject_rows()
+        if not rows:
             self.add_error(
-                "marks", "Marks cannot exceed the maximum marks."
+                None, "Record at least one subject with its marks (up to eight)."
             )
-        if marks is not None and max_marks:
-            cleaned["percentage"] = (Decimal(marks) / Decimal(max_marks)) * 100
+        cleaned["_subject_rows"] = rows
         return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if commit:
+            instance.save()
+            self._save_subjects(instance)
+            instance.recompute_overall()
+            instance.save(update_fields=["overall_percentage"])
+        return instance
+
+    def _save_subjects(self, instance):
+        """Replace the assessment's subject lines with the validated blocks."""
+        instance.subjects.all().delete()
+        for row in self.cleaned_data.get("_subject_rows", []):
+            AssessmentSubject.objects.create(assessment=instance, **row)

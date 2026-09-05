@@ -13,6 +13,7 @@ from .forms import (
     UserRegistrationForm,
 )
 from .models import (
+    Centre,
     EmergencyContact,
     EnrolmentAgreement,
     Invoice,
@@ -27,6 +28,9 @@ User = get_user_model()
 
 
 class StudentRegistrationTests(TestCase):
+    def setUp(self):
+        self.centre = Centre.objects.create(name="Chalvey", slug="chalvey")
+
     def test_register_student_creates_parent_and_student(self):
         response = self.client.post(
             reverse("register_student"),
@@ -40,6 +44,7 @@ class StudentRegistrationTests(TestCase):
                 "date_of_birth": "2012-05-10",
                 "year_group": "Year 8",
                 "subjects": "11_plus",
+                "centre": self.centre.pk,
             },
         )
 
@@ -50,6 +55,7 @@ class StudentRegistrationTests(TestCase):
         parent = Parent.objects.get(parent_name="Jane Smith")
         student = Student.objects.get(student_name="Sam Smith")
         self.assertEqual(student.parent, parent)
+        self.assertEqual(student.centre, self.centre)
         self.assertEqual(parent.email, "jane@example.com")
 
 
@@ -143,6 +149,9 @@ class UserRegistrationFormTests(TestCase):
 
 
 class AuthenticationFlowTests(TestCase):
+    def setUp(self):
+        self.centre = Centre.objects.create(name="Chalvey", slug="chalvey")
+
     def test_register_login_logout_flow(self):
         self.client.post(
             reverse("register"),
@@ -209,6 +218,7 @@ class AuthenticationFlowTests(TestCase):
                 "date_of_birth": "2012-05-10",
                 "year_group": "Year 8",
                 "subjects": "11_plus",
+                "centre": self.centre.pk,
             },
         )
         parent = Parent.objects.get(parent_name="Jane Smith")
@@ -267,6 +277,7 @@ class MyAccountTests(TestCase):
 
 class EnrolInviteFlowTests(TestCase):
     def setUp(self):
+        self.centre = Centre.objects.create(name="Chalvey", slug="chalvey")
         self.user = User.objects.create_user(
             email="parent@example.com", password="StrongPass123!"
         )
@@ -322,6 +333,7 @@ class EnrolInviteFlowTests(TestCase):
             "student_name": "Sam Smith",
             "year_group": "Year 8",
             "subjects": "11_plus",
+            "centre": self.centre.pk,
             "parent_name": "Jane Smith",
             "relationship_to_student": "Mother",
             "phone_number": "01753 318318",
@@ -364,7 +376,7 @@ class EnrolInviteFlowTests(TestCase):
 from decimal import Decimal
 
 from django.contrib.auth.models import Group, Permission
-from .models import Assessment, DeliveryType, PaymentPlan
+from .models import Assessment, AssessmentSubject, DeliveryType, PaymentPlan
 
 
 class BillingFoundationTests(TestCase):
@@ -403,14 +415,21 @@ class BillingFoundationTests(TestCase):
     def test_assessment_model_records_marks(self):
         assessment = Assessment.objects.create(
             student=self.student,
-            subject="Maths",
             assessment_date=date.today(),
+        )
+        AssessmentSubject.objects.create(
+            assessment=assessment,
+            subject="Mathematics",
+            year_group="Year 8",
             max_marks=50,
             marks=40,
             percentage=Decimal("80.0"),
         )
-        self.assertEqual(assessment.percentage, Decimal("80.0"))
+        assessment.recompute_overall()
+        assessment.save(update_fields=["overall_percentage"])
+        self.assertEqual(assessment.overall_percentage, Decimal("80.0"))
         self.assertEqual(assessment.student, self.student)
+        self.assertEqual(assessment.subjects.count(), 1)
 
     def test_staff_group_lacks_billing_permissions(self):
         staff, _ = Group.objects.get_or_create(
@@ -930,6 +949,9 @@ class PasswordResetFlowTests(TestCase):
 class RegisterDedupeTests(TestCase):
     """register_student must not create duplicate Parent rows by email."""
 
+    def setUp(self):
+        self.centre = Centre.objects.create(name="Chalvey", slug="chalvey")
+
     def test_unauthenticated_enrolment_reuses_existing_parent_by_email(self):
         existing = Parent.objects.create(
             parent_name="Old Name",
@@ -947,6 +969,7 @@ class RegisterDedupeTests(TestCase):
                 "date_of_birth": "2012-05-10",
                 "year_group": "Year 5",
                 "subjects": "11_plus",
+                "centre": self.centre.pk,
                 "school_name": "St Ethelbert's",
                 "relationship_to_student": "Mother",
             },
@@ -1053,14 +1076,19 @@ class AssessmentCrudTests(TestCase):
         )
         self.assessment = Assessment.objects.create(
             student=self.student,
-            subject="gcse_maths",
             assessment_date="2026-09-01",
-            topics="Algebra",
+            tutor_notes="Doing well.",
+        )
+        AssessmentSubject.objects.create(
+            assessment=self.assessment,
+            subject="Mathematics",
+            year_group="Year 8",
             max_marks=20,
             marks=16,
             percentage=Decimal("80.0"),
-            tutor_notes="Doing well.",
         )
+        self.assessment.recompute_overall()
+        self.assessment.save(update_fields=["overall_percentage"])
         self.client.login(username="staff@example.com", password="StaffPass123!")
 
     def test_edit_assessment_updates_record(self):
@@ -1068,11 +1096,11 @@ class AssessmentCrudTests(TestCase):
             reverse("staff_assessment_edit", args=[self.assessment.pk]),
             {
                 "student": self.student.pk,
-                "subject": "gcse_maths",
                 "assessment_date": "2026-09-01",
-                "topics": "Algebra, Quadratics",
-                "max_marks": "20",
-                "marks": "18",
+                "year_group_1": "Year 8",
+                "subject_1": "Mathematics",
+                "marks_1": "18",
+                "max_marks_1": "20",
                 "tutor_notes": "Improved.",
             },
         )
@@ -1080,29 +1108,140 @@ class AssessmentCrudTests(TestCase):
             response, reverse("staff_student_assessments", args=[self.student.pk])
         )
         self.assessment.refresh_from_db()
-        self.assertEqual(self.assessment.marks, 18)
-        self.assertEqual(self.assessment.topics, "Algebra, Quadratics")
+        subject = self.assessment.subjects.first()
+        self.assertEqual(self.assessment.subjects.count(), 1)
+        self.assertEqual(subject.marks, 18)
+        self.assertEqual(subject.year_group, "Year 8")
+        self.assertEqual(subject.percentage, Decimal("90.0"))
 
     def test_delete_assessment(self):
         self.client.post(reverse("staff_assessment_delete", args=[self.assessment.pk]))
         self.assertFalse(Assessment.objects.filter(pk=self.assessment.pk).exists())
 
     def test_history_view_shows_average(self):
-        Assessment.objects.create(
+        other = Assessment.objects.create(
             student=self.student,
-            subject="gcse_english",
             assessment_date="2026-09-10",
+        )
+        AssessmentSubject.objects.create(
+            assessment=other,
+            subject="English",
             max_marks=10,
             marks=8,
             percentage=Decimal("80.0"),
         )
+        other.recompute_overall()
+        other.save(update_fields=["overall_percentage"])
         response = self.client.get(
             reverse("staff_student_assessments", args=[self.student.pk])
         )
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "staff/assessment_history.html")
         self.assertContains(response, "80.0")
-        self.assertContains(response, "gcse_english")
+        self.assertContains(response, "English")
+
+    def test_history_view_shows_stats_trend_and_breakdown(self):
+        other = Assessment.objects.create(
+            student=self.student,
+            assessment_date="2026-09-10",
+        )
+        AssessmentSubject.objects.create(
+            assessment=other,
+            subject="English",
+            max_marks=10,
+            marks=8,
+            percentage=Decimal("80.0"),
+        )
+        other.recompute_overall()
+        other.save(update_fields=["overall_percentage"])
+        response = self.client.get(
+            reverse("staff_student_assessments", args=[self.student.pk])
+        )
+        self.assertContains(response, "Score trend")
+        self.assertContains(response, "By subject")
+        self.assertContains(response, "Average")
+        self.assertContains(response, "Best")
+        self.assertContains(response, "Latest")
+
+    def test_assessment_create_records_up_to_five_subjects_and_average(self):
+        self.client.login(username="staff@example.com", password="StaffPass123!")
+        response = self.client.post(
+            reverse("staff_assessment_create"),
+            {
+                "student": self.student.pk,
+                "assessment_date": "2026-09-15",
+                "year_group_1": "Year 9",
+                "subject_1": "Mathematics",
+                "marks_1": "80",
+                "year_group_2": "Year 9",
+                "subject_2": "English",
+                "marks_2": "70",
+                "year_group_3": "Year 9",
+                "subject_3": "Science",
+                "marks_3": "60",
+                "tutor_notes": "Three subjects recorded.",
+            },
+        )
+        self.assertRedirects(response, reverse("staff_assessment_list"))
+        assessment = Assessment.objects.get(
+            student=self.student, assessment_date="2026-09-15"
+        )
+        self.assertEqual(assessment.subjects.count(), 3)
+        self.assertEqual(assessment.overall_percentage, Decimal("70.0"))
+        subjects = list(assessment.subjects.all())
+        self.assertEqual(subjects[0].subject, "Mathematics")
+        self.assertEqual(subjects[0].year_group, "Year 9")
+        self.assertEqual(subjects[2].percentage, Decimal("60.0"))
+
+    def test_assessment_create_records_up_to_eight_subjects(self):
+        self.client.login(username="staff@example.com", password="StaffPass123!")
+        data = {"student": self.student.pk, "assessment_date": "2026-09-20"}
+        for i in range(1, 9):
+            data[f"subject_{i}"] = "Mathematics"
+            data[f"marks_{i}"] = str(10 * i)
+        response = self.client.post(reverse("staff_assessment_create"), data)
+        self.assertRedirects(response, reverse("staff_assessment_list"))
+        assessment = Assessment.objects.get(
+            student=self.student, assessment_date="2026-09-20"
+        )
+        self.assertEqual(assessment.subjects.count(), 8)
+        self.assertEqual(assessment.overall_percentage, Decimal("45.0"))
+
+    def test_assessment_create_rejects_missing_subjects(self):
+        self.client.login(username="staff@example.com", password="StaffPass123!")
+        response = self.client.post(
+            reverse("staff_assessment_create"),
+            {
+                "student": self.student.pk,
+                "assessment_date": "2026-09-15",
+                "tutor_notes": "No subject entered.",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            Assessment.objects.filter(
+                student=self.student, assessment_date="2026-09-15"
+            ).exists()
+        )
+
+    def test_assessment_create_rejects_marks_over_maximum(self):
+        self.client.login(username="staff@example.com", password="StaffPass123!")
+        response = self.client.post(
+            reverse("staff_assessment_create"),
+            {
+                "student": self.student.pk,
+                "assessment_date": "2026-09-15",
+                "subject_1": "Mathematics",
+                "marks_1": "25",
+                "max_marks_1": "20",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            Assessment.objects.filter(
+                student=self.student, assessment_date="2026-09-15"
+            ).exists()
+        )
 
     def test_pdf_report_download(self):
         response = self.client.get(

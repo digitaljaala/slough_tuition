@@ -4,7 +4,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="{% static 'css/output.css' %}?v=10">
+    <link rel="stylesheet" href="{% static 'css/output.css' %}?v=12">
     <title>{% block title %}Staff Console | Slough Tuition Centre{% endblock %}</title>
   </head>
   <body class="bg-[#F2E5D7]/40 font-sans text-[#262322] antialiased">
@@ -19,7 +19,13 @@
           </div>
           <div>
             <p class="text-sm font-black leading-tight">Staff Console</p>
-            <p class="text-xs text-white/60">Slough Tuition Centre</p>
+            <p class="text-xs text-white/60">
+              {% if user.centre %}
+                {{ user.centre.name }}{% if user.centre.is_head_office %} · Head office{% endif %}
+              {% else %}
+                All centres
+              {% endif %}
+            </p>
           </div>
         </div>
 

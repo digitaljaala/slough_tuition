@@ -57,9 +57,7 @@ def build_assessment_pdf(assessment, title="Assessment Report"):
     c.drawString(x, height - 18 * mm, title)
     c.setFont("Helvetica", 8.5)
     c.setFillColor(colors.HexColor("#D7F0EE"))
-    centre = "Slough Tuition Centre"
-    if hasattr(settings, "STC_CENTRE_NAME"):
-        centre = getattr(settings, "STC_CENTRE_NAME", centre)
+    centre = _centre_name(assessment)
     c.drawRightString(width - margin, height - 18 * mm, centre)
 
     y -= 34 * mm
@@ -102,13 +100,12 @@ def build_assessment_pdf(assessment, title="Assessment Report"):
     y -= 10 * mm
 
     # --- Assessment details ---
+    year = stu.year_group or "—"
     rows = [
-        ("Subject", assessment.subject),
+        ("Year / Class", year),
         ("Assessment date", assessment.assessment_date.strftime("%d %B %Y") if assessment.assessment_date else "—"),
         ("Result", _result_text(assessment)),
     ]
-    if assessment.topics:
-        rows.append(("Topics covered", assessment.topics))
     for label, value in rows:
         c.setFillColor(_MUTED)
         c.setFont("Helvetica", 8.5)
@@ -118,6 +115,43 @@ def build_assessment_pdf(assessment, title="Assessment Report"):
         y -= 4.5 * mm
         y = _wrap(c, value, x, y, width - 2 * margin, "Helvetica", 10.5, 4.5 * mm)
         y -= 5 * mm
+
+    # --- Per-subject breakdown (with a colour-coded bar per subject) ---
+    subjects = list(assessment.subjects.all())
+    if subjects:
+        y -= 2 * mm
+        c.setFillColor(_MUTED)
+        c.setFont("Helvetica", 8.5)
+        c.drawString(x, y, "SUBJECT BREAKDOWN")
+        y -= 5 * mm
+        bar_w = width - 2 * margin - 22 * mm
+        for subj in subjects:
+            name = subj.subject
+            if subj.year_group:
+                name += f" — {subj.year_group}"
+            c.setFillColor(_INK)
+            c.setFont("Helvetica-Bold", 10)
+            y = _wrap(c, name, x, y, bar_w, "Helvetica-Bold", 10, 4.5 * mm)
+            if subj.marks is not None:
+                c.setFillColor(_MUTED)
+                c.setFont("Helvetica", 8.5)
+                marks_text = f"{subj.marks}/{subj.max_marks}" if subj.max_marks else str(subj.marks)
+                c.drawRightString(width - margin, y + 4.5 * mm, marks_text)
+            if subj.percentage is not None:
+                pct = max(0.0, min(100.0, float(subj.percentage)))
+                bar_h = 2.2 * mm
+                c.setFillColor(colors.HexColor("#E2E8F0"))
+                c.roundRect(x, y, bar_w, bar_h, bar_h / 2, stroke=0, fill=1)
+                if pct > 0:
+                    c.setFillColor(_bar_colour(pct))
+                    c.roundRect(x, y, bar_w * pct / 100.0, bar_h, bar_h / 2, stroke=0, fill=1)
+                c.setFillColor(_INK)
+                c.setFont("Helvetica-Bold", 9)
+                c.drawRightString(width - margin, y + 0.6 * mm, f"{subj.percentage:g}%")
+                y -= 4.5 * mm
+            else:
+                y -= 1.5 * mm
+            y -= 3 * mm
 
     # --- Tutor notes ---
     if assessment.tutor_notes.strip():
@@ -132,21 +166,42 @@ def build_assessment_pdf(assessment, title="Assessment Report"):
     # --- Footer ---
     c.setFillColor(_MUTED)
     c.setFont("Helvetica", 7.5)
-    c.drawString(x, 12 * mm, f"Generated {__import__('datetime').date.today():%d %B %Y} · Slough Tuition Centre")
+    c.drawString(
+        x,
+        12 * mm,
+        f"Generated {__import__('datetime').date.today():%d %B %Y} · {centre}",
+    )
 
     c.showPage()
     c.save()
     return buf.getvalue()
 
 
+def _bar_colour(pct):
+    """Green / amber / red traffic-light for a percentage bar."""
+    if pct >= 80:
+        return colors.HexColor("#10B981")
+    if pct >= 60:
+        return colors.HexColor("#F59E0B")
+    return colors.HexColor("#F43F5E")
+
+
+def _centre_name(assessment):
+    """Per-centre branding on the PDF header/footer."""
+    centre = getattr(assessment.student, "centre", None)
+    if centre and centre.name:
+        return centre.name
+    return getattr(settings, "STC_CENTRE_NAME", "Slough Tuition Centre")
+
+
 def _result_text(assessment):
-    if assessment.marks is None:
+    if assessment.overall_percentage is not None:
+        return f"Overall average {assessment.overall_percentage:g}%"
+    subjects = list(assessment.subjects.all())
+    if not subjects:
         return "Not yet marked"
-    if assessment.max_marks:
-        mark_str = f"{assessment.marks} / {assessment.max_marks}"
-        if assessment.percentage is not None:
-            mark_str += f"  ·  {assessment.percentage:g}%"
-        return mark_str
-    if assessment.percentage is not None:
-        return f"{assessment.percentage:g}%"
-    return str(assessment.marks)
+    marked = [s for s in subjects if s.percentage is not None]
+    if marked:
+        avg = sum(s.percentage for s in marked) / len(marked)
+        return f"Overall average {avg:g}%"
+    return "Not yet marked"

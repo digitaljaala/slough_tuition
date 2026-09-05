@@ -3,38 +3,109 @@
 {% block title %}Assessments | Staff Console{% endblock %}
 
 {% block content %}
-  <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
     <p class="text-sm text-slate-600">Record assessment results — these feed into student reports.</p>
-    <a href="{% url 'staff_assessment_create' %}" class="rounded-full bg-[#36827F] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#2a5f5d]">+ Record assessment</a>
+    <a href="{% url 'staff_assessment_create' %}" class="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700">+ Record assessment</a>
   </div>
 
-  <div class="space-y-3">
+  <div class="space-y-4">
     {% for a in assessments %}
-      <div class="rounded-2xl border border-[#262322]/10 bg-white p-5 shadow-sm">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <div class="flex items-center gap-3">
-            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#36827F]/10 font-black text-[#36827F]">{{ a.student.student_name|slice:":1"|upper }}</span>
-            <div>
-              <p class="font-bold">{{ a.student.student_name }}</p>
-              <p class="text-sm text-slate-500">{{ a.subject }} · {{ a.assessment_date|date:"d M Y" }}</p>
+      <div class="bg-white border border-slate-200 shadow-sm rounded-xl p-5 hover:border-slate-300 transition-all">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="text-lg font-semibold text-slate-900">{{ a.student.student_name }}</h3>
+              {% if a.student.year_group %}
+                <span class="bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full text-xs">{{ a.student.year_group }}</span>
+              {% endif %}
             </div>
           </div>
-          {% if a.marks is not None %}
-            <span class="rounded-full bg-[#36827F]/10 px-3 py-1 text-sm font-black text-[#36827F]">
-              {{ a.marks }}{% if a.max_marks %}/{{ a.max_marks }}{% endif %}{% if a.percentage %} · {{ a.percentage|floatformat:0 }}%{% endif %}
-            </span>
+          {% if a.score_percentage is not None %}
+            {% if a.score_colour == 'emerald' %}
+              <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">{{ a.score_percentage|floatformat:0 }}%</span>
+            {% elif a.score_colour == 'amber' %}
+              <span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">{{ a.score_percentage|floatformat:0 }}%</span>
+            {% else %}
+              <span class="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-700">{{ a.score_percentage|floatformat:0 }}%</span>
+            {% endif %}
+          {% else %}
+            <span class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-sm font-medium text-slate-500">Not marked</span>
           {% endif %}
-          <a href="{% url 'staff_student_assessments' a.student_id %}" class="rounded-full border border-[#36827F] px-3 py-1 text-sm font-bold text-[#36827F] hover:bg-[#36827F]/10">History</a>
         </div>
-        {% if a.topics %}
-          <p class="mt-3 text-sm text-slate-600"><span class="font-semibold">Topics:</span> {{ a.topics }}</p>
+
+        {% if a.score_percentage is not None %}
+          <div class="mt-4 w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+            <div class="h-full rounded-full {% if a.score_colour == 'emerald' %}bg-emerald-500{% elif a.score_colour == 'amber' %}bg-amber-500{% else %}bg-rose-500{% endif %}" style="width: {{ a.score_percentage|floatformat:0 }}%"></div>
+          </div>
         {% endif %}
+
+        <dl class="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt class="text-slate-500">Date</dt>
+            <dd class="text-slate-900">{{ a.assessment_date|date:"d M Y" }}</dd>
+          </div>
+        </dl>
+
+        <div class="mt-4 overflow-hidden rounded-xl border border-slate-100">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th class="px-4 py-2 font-semibold">Year / Class</th>
+                <th class="px-4 py-2 font-semibold">Subject</th>
+                <th class="px-4 py-2 font-semibold">Marks</th>
+                <th class="px-4 py-2 font-semibold">Percentage</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              {% for s in a.subject_rows %}
+                <tr>
+                  <td class="px-4 py-3 text-slate-700">{{ s.year_group|default:"—" }}</td>
+                  <td class="px-4 py-3 font-medium text-slate-900">{{ s.subject }}</td>
+                  <td class="px-4 py-3 text-slate-700">
+                    {% if s.marks is not None %}{{ s.marks }}{% if s.max_marks %}/{{ s.max_marks }}{% endif %}{% else %}—{% endif %}
+                  </td>
+                  <td class="px-4 py-3">
+                    {% if s.percentage is not None %}
+                      <div class="flex items-center gap-2">
+                        <div class="h-2 w-20 shrink-0 overflow-hidden rounded-full bg-slate-100">
+                          <div class="h-full rounded-full {% if s.percentage >= 80 %}bg-emerald-500{% elif s.percentage >= 60 %}bg-amber-500{% else %}bg-rose-500{% endif %}" style="width: {{ s.percentage|floatformat:0 }}%"></div>
+                        </div>
+                        <span class="shrink-0 font-bold text-slate-700">{{ s.percentage|floatformat:0 }}%</span>
+                      </div>
+                    {% else %}—{% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4" class="px-4 py-3 text-slate-500">No subjects recorded.</td></tr>
+              {% endfor %}
+            </tbody>
+            {% if a.score_percentage is not None %}
+              <tfoot class="bg-slate-50">
+                <tr>
+                  <td colspan="3" class="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-500">Overall average</td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                      <div class="h-2 w-20 shrink-0 overflow-hidden rounded-full bg-slate-100">
+                        <div class="h-full rounded-full {% if a.score_colour == 'emerald' %}bg-emerald-500{% elif a.score_colour == 'amber' %}bg-amber-500{% else %}bg-rose-500{% endif %}" style="width: {{ a.score_percentage|floatformat:0 }}%"></div>
+                      </div>
+                      <span class="shrink-0 font-black text-slate-900">{{ a.score_percentage|floatformat:0 }}%</span>
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
+            {% endif %}
+          </table>
+        </div>
+
         {% if a.tutor_notes %}
-          <p class="mt-2 text-sm text-slate-600"><span class="font-semibold">Notes:</span> {{ a.tutor_notes }}</p>
+          <div class="mt-3">
+            <dt class="text-slate-500">Teacher Notes</dt>
+            <dd class="text-slate-900">{{ a.tutor_notes }}</dd>
+          </div>
         {% endif %}
       </div>
     {% empty %}
-      <div class="rounded-2xl border border-dashed border-[#262322]/20 bg-white p-8 text-center text-sm text-slate-500">
+      <div class="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
         No assessments recorded yet.
       </div>
     {% endfor %}

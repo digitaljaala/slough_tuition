@@ -7,10 +7,11 @@
 
   <div class="overflow-hidden rounded-2xl border border-[#262322]/10 bg-white shadow-sm">
     <div class="overflow-x-auto">
-      <table class="w-full min-w-[640px] text-left text-sm">
+      <table class="w-full min-w-[760px] text-left text-sm">
         <thead class="bg-[#F2E5D7]/60 text-xs uppercase tracking-wide text-slate-500">
           <tr>
             <th class="px-5 py-3 font-bold">Student</th>
+            <th class="px-5 py-3 font-bold">Centre</th>
             <th class="px-5 py-3 font-bold">Year</th>
             <th class="px-5 py-3 font-bold">Delivery</th>
             <th class="px-5 py-3 font-bold">Payment plan</th>
@@ -22,6 +23,13 @@
           {% for stu in students %}
             <tr class="hover:bg-[#F2E5D7]/30">
               <td class="px-5 py-3 font-bold">{{ stu.student_name }}</td>
+              <td class="px-5 py-3">
+                {% if stu.centre %}
+                  <span class="rounded-full bg-[#2a5f5d]/10 px-3 py-1 text-xs font-bold text-[#2a5f5d]">{{ stu.centre.name }}</span>
+                {% else %}
+                  <span class="text-xs text-slate-400">—</span>
+                {% endif %}
+              </td>
               <td class="px-5 py-3 text-slate-600">{{ stu.year_group }}</td>
               <td class="px-5 py-3">
                 <span class="rounded-full bg-[#36827F]/10 px-3 py-1 text-xs font-bold text-[#36827F]">{{ stu.get_delivery_type_display }}</span>
@@ -33,7 +41,7 @@
               </td>
             </tr>
           {% empty %}
-            <tr><td class="px-5 py-8 text-center text-slate-500" colspan="6">No students yet.</td></tr>
+            <tr><td class="px-5 py-8 text-center text-slate-500" colspan="7">No students yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>

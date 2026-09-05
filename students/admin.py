@@ -6,6 +6,7 @@ import uuid
 
 from .models import (
     Assessment,
+    AssessmentSubject,
     EmergencyContact,
     EnrolmentAgreement,
     Invoice,
@@ -62,6 +63,10 @@ class ProgressReportInline(admin.TabularInline):
 
 class AssessmentInline(admin.TabularInline):
     model = Assessment
+    extra = 0
+
+class AssessmentSubjectInline(admin.TabularInline):
+    model = AssessmentSubject
     extra = 0
 
 @admin.register(Parent)
@@ -248,12 +253,22 @@ class PaymentPlanAdmin(admin.ModelAdmin):
 class AssessmentAdmin(admin.ModelAdmin):
     list_display = (
         'student',
-        'subject',
         'assessment_date',
-        'marks',
-        'percentage',
-        'topics',
+        'overall_percentage',
+        'subject_count',
     )
-    list_filter = ('subject', 'assessment_date')
-    search_fields = ('student__student_name', 'subject', 'topics')
+    list_filter = ('assessment_date',)
+    search_fields = ('student__student_name', 'subjects__subject', 'subjects__year_group')
+    inlines = [AssessmentSubjectInline]
+
+    @admin.display(description="Subjects")
+    def subject_count(self, obj):
+        return obj.subjects.count()
+
+
+@admin.register(AssessmentSubject)
+class AssessmentSubjectAdmin(admin.ModelAdmin):
+    list_display = ('assessment', 'year_group', 'subject', 'marks', 'max_marks', 'percentage')
+    list_filter = ('subject', 'year_group')
+    search_fields = ('subject', 'year_group', 'assessment__student__student_name')
     

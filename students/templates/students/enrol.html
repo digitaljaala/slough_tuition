@@ -2,17 +2,58 @@
 
 {% block title %}Student Enrolment | Slough Tuition Centre{% endblock %}
 
-{% block content %}
-<main class="mx-auto max-w-2xl px-6 py-12 lg:px-8">
+{% block extra_head %}
+<script src="https://unpkg.com/motion"></script>
+<style>
+  @keyframes stcReveal { from { opacity: 0; transform: translateY(10px); }
+                         to   { opacity: 1; transform: translateY(0); } }
+  .no-motion [data-reveal] { opacity: 0; animation: stcReveal .8s ease-out forwards; }
+  @media (prefers-reduced-motion: reduce) {
+    .no-motion [data-reveal] { animation: none; opacity: 1; } }
+</style>
+{% endblock %}
 
-  <div class="text-center">
-    <p class="text-xs font-bold uppercase tracking-[0.28em] text-[#36827F]">Slough Tuition Centre</p>
-    <h1 class="mt-2 text-3xl font-black text-[#262322]">Student Enrolment &amp; Parental Agreement</h1>
-    <p class="mt-3 text-sm text-slate-600">
-      Please complete this form accurately. All communication regarding tuition, attendance, payments,
-      or concerns must be made directly with STC.
-    </p>
-  </div>
+{% block content %}
+<main class="mx-auto grid max-w-7xl gap-10 px-6 py-12 lg:grid-cols-[320px_minmax(0,1fr)] lg:px-8">
+
+  {# ---------- LEFT SIDEBAR PANE : trust marks ---------- #}
+  <aside class="lg:sticky lg:top-28 lg:self-start">
+    <div data-reveal class="rounded-3xl bg-[#36827F] p-7 text-white shadow-lg shadow-[#36827F]/20">
+      <p class="text-xs font-bold uppercase tracking-[0.28em] text-white/70">Slough Tuition Centre</p>
+      <h1 class="mt-2 text-2xl font-black leading-tight text-[#F2E5D7]">Student Enrolment &amp; Parental Agreement</h1>
+      <p class="mt-3 text-sm leading-relaxed text-white/90">
+        Please complete this form accurately. All communication regarding tuition, attendance,
+        payments, or concerns must be made directly with STC.
+      </p>
+    </div>
+
+    <ul class="mt-5 space-y-4 text-sm">
+      <li data-reveal class="flex gap-3.5 rounded-2xl border border-[#262322]/10 bg-white p-4 shadow-sm">
+        <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#36827F]/10 text-[#36827F]">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+        </span>
+        <div><p class="font-bold text-[#262322]">Encrypted transfer</p>
+        <p class="mt-0.5 text-slate-500">TLS-secured posting; invite tokens are single-use UUIDs.</p></div>
+      </li>
+      <li data-reveal class="flex gap-3.5 rounded-2xl border border-[#262322]/10 bg-white p-4 shadow-sm">
+        <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#36827F]/10 text-[#36827F]">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+        </span>
+        <div><p class="font-bold text-[#262322]">Row-level privacy</p>
+        <p class="mt-0.5 text-slate-500">Staff and parents only ever see records scoped to their own centre and children.</p></div>
+      </li>
+      <li data-reveal class="flex gap-3.5 rounded-2xl border border-[#262322]/10 bg-white p-4 shadow-sm">
+        <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#36827F]/10 text-[#36827F]">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/></svg>
+        </span>
+        <div><p class="font-bold text-[#262322]">Automated receipts</p>
+        <p class="mt-0.5 text-slate-500">Enrolment confirmations and session invoices are dispatched to your inbox automatically.</p></div>
+      </li>
+    </ul>
+  </aside>
+
+  {# ---------- RIGHT MAIN FORM CARD ---------- #}
+  <div>
 
   {% if messages %}
     <div class="mt-6 space-y-2">
@@ -42,7 +83,7 @@
     </div>
   {% endif %}
 
-  <form method="post" action="{% url 'enrol' %}" class="mt-8" novalidate>
+  <form method="post" action="{% url 'enrol' %}" class="mt-8" novalidate data-reveal>
     {% csrf_token %}
     <input type="hidden" name="token" value="{{ token }}">
 
@@ -178,7 +219,7 @@
         Back
       </button>
       <button type="button" id="next-step"
-              class="ml-auto rounded-full bg-[#E63946] px-8 py-3 text-sm font-bold text-white shadow-md shadow-[#E63946]/20 transition hover:bg-[#c92f3b]">
+              class="ml-auto rounded-full bg-[#36827F] px-8 py-3 text-sm font-bold text-white shadow-md shadow-[#36827F]/20 transition hover:bg-[#2c6b68]">
         Next
       </button>
       <button type="submit" id="submit-step"
@@ -187,7 +228,23 @@
       </button>
     </div>
   </form>
+  </div>
 </main>
+
+<script>
+(function () {
+  var els = document.querySelectorAll('[data-reveal]');
+  if (window.Motion && window.Motion.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    var s = window.Motion.stagger || function (d) { return d; };
+    window.Motion.animate(els,
+      { opacity: [0, 1], y: [10, 0] },
+      { duration: 0.8, ease: 'easeOut', delay: s(0.12) });
+  } else if (!window.Motion) {
+    document.querySelector('main').classList.add('no-motion');
+    els.forEach(function (el, i) { el.style.animationDelay = (i * 0.12) + 's'; });
+  }
+})();
+</script>
 
 <script>
 (function () {

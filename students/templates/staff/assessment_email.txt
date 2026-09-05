@@ -3,7 +3,7 @@ Hi {{ parent.parent_name }},
 Please find attached a PDF assessment report for your child
 {{ assessment.student.student_name }}.
 
-Subject: {{ assessment.subject }}
+Subjects: {{ assessment.subject_summary }}
 Date: {{ assessment.assessment_date|date:"d M Y" }}
 
 If you have any questions, just reply to this email.

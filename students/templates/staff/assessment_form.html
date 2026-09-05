@@ -3,22 +3,130 @@
 {% block title %}{{ title }} | Staff Console{% endblock %}
 
 {% block content %}
-  <div class="max-w-2xl rounded-2xl border border-[#262322]/10 bg-white p-6 shadow-sm md:p-8">
+  <div class="mb-5">
+    <a href="{% if assessment %}{% url 'staff_student_assessments' assessment.student_id %}{% else %}{% url 'staff_assessment_list' %}{% endif %}" class="text-sm font-semibold text-[#36827F] hover:underline">← Back to{% if assessment %} {{ assessment.student.student_name }}{% else %} assessments{% endif %}</a>
+  </div>
+  <div class="max-w-4xl rounded-2xl border border-[#262322]/10 bg-white p-6 shadow-sm md:p-8">
     <form method="post" novalidate>
       {% csrf_token %}
-      <div class="grid gap-5 sm:grid-cols-2">
-        {% for field in form %}
-          <div class="{% if field.name in 'student,subject,topics,tutor_notes' %}sm:col-span-2{% endif %}">
-            <label class="block text-sm font-semibold text-[#262322]">
-              {{ field.label }}
-              {{ field }}
-            </label>
-            {% if field.errors %}
-              <p class="mt-1 text-sm font-medium text-[#E63946]" role="alert">{{ field.errors.0 }}</p>
-            {% endif %}
-          </div>
+
+      {% if form.non_field_errors %}
+        <div class="mb-5 rounded-xl border border-[#E63946]/30 bg-[#E63946]/10 px-4 py-3 text-sm font-semibold text-[#E63946]" role="alert">
+          {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+        </div>
+      {% endif %}
+
+      {# ---------- Student details / date ---------- #}
+      <h2 class="text-sm font-black uppercase tracking-wide text-[#36827F]">Assessment details</h2>
+      <div class="mt-4 grid gap-5 sm:grid-cols-2">
+        <div>
+          <label class="block text-sm font-semibold text-[#262322]">{{ form.student.label }}</label>
+          {{ form.student }}
+          {% for error in form.student.errors %}<p class="mt-1 text-sm font-medium text-[#E63946]" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-[#262322]">{{ form.assessment_date.label }}</label>
+          {{ form.assessment_date }}
+          {% for error in form.assessment_date.errors %}<p class="mt-1 text-sm font-medium text-[#E63946]" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+      </div>
+
+      {# ---------- Subject mark blocks ---------- #}
+      <div class="mt-8 flex flex-wrap items-center justify-between gap-3">
+        <h2 class="text-sm font-black uppercase tracking-wide text-[#36827F]">Subjects &amp; marks</h2>
+        <div class="flex items-center gap-2">
+          <span class="rounded-full bg-[#F2E5D7]/60 px-3 py-1 text-xs font-bold text-[#262322]">
+            <span data-subject-count>1</span> of <span data-subject-max>{{ subject_groups|length }}</span> subjects
+          </span>
+          <button type="button" data-copy-level class="hidden items-center gap-1 rounded-full border border-[#36827F]/40 px-3 py-1 text-xs font-bold text-[#36827F] transition hover:bg-[#36827F]/10" title="Apply this year/class to every visible subject block">
+            Copy year to all
+          </button>
+          <button type="button" data-copy-subject class="hidden items-center gap-1 rounded-full border border-[#36827F]/40 px-3 py-1 text-xs font-bold text-[#36827F] transition hover:bg-[#36827F]/10" title="Apply this subject to every visible subject block">
+            Copy subject to all
+          </button>
+        </div>
+      </div>
+      <p class="mt-1 text-sm text-slate-500">
+        Add each subject you assessed, then enter the score.
+        <strong class="text-slate-700">If you fill in "Out of", the percentage is calculated (marks ÷ out of × 100).</strong>
+        If you leave "Out of" blank, the number you type in Marks is treated as a <strong class="text-slate-700">raw percentage (0–100)</strong> — e.g. type 85 for 85%.
+      </p>
+
+      <div class="mt-5 space-y-4" data-subject-blocks>
+        {% for g in subject_groups %}
+          <fieldset class="subject-block rounded-2xl border border-[#262322]/10 bg-[#F2E5D7]/20 p-4 transition{% if not g.active %} hidden{% endif %}" data-index="{{ g.number }}">
+            <div class="flex items-center justify-between gap-3">
+              <legend class="flex items-center gap-2">
+                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#36827F] text-xs font-black text-white">{{ g.number }}</span>
+                <span class="text-sm font-bold text-[#262322]">Subject {{ g.number }}</span>
+              </legend>
+              <div class="flex items-center gap-3">
+                <span data-pct-pill class="hidden rounded-full border border-[#36827F]/30 bg-[#36827F]/10 px-3 py-1 text-sm font-black text-[#36827F]">
+                  <span data-pct-label>0%</span>
+                </span>
+                <button type="button" data-remove class="flex h-7 w-7 items-center justify-center rounded-full border border-[#262322]/15 text-sm font-bold text-[#262322]/50 transition hover:border-[#E63946]/40 hover:text-[#E63946]" aria-label="Remove subject {{ g.number }}" title="Remove subject">×</button>
+              </div>
+            </div>
+
+            <div class="mt-3 flex flex-wrap gap-4">
+              <div class="w-full sm:w-60">
+                <label class="block text-xs font-semibold text-slate-500">{{ g.year_group.label }}</label>
+                {{ g.year_group }}
+                {% for error in g.year_group.errors %}<p class="mt-1 text-sm font-medium text-[#E63946]" role="alert">{{ error }}</p>{% endfor %}
+              </div>
+              <div class="w-full sm:w-64">
+                <label class="block text-xs font-semibold text-slate-500">{{ g.subject.label }}</label>
+                {{ g.subject }}
+                {% for error in g.subject.errors %}<p class="mt-1 text-sm font-medium text-[#E63946]" role="alert">{{ error }}</p>{% endfor %}
+              </div>
+              <div class="w-full sm:w-32">
+                <label class="block text-xs font-semibold text-slate-500">{{ g.marks.label }}</label>
+                {{ g.marks }}
+                {% for error in g.marks.errors %}<p class="mt-1 text-sm font-medium text-[#E63946]" role="alert">{{ error }}</p>{% endfor %}
+              </div>
+              <div class="w-full sm:w-32">
+                <label class="block text-xs font-semibold text-slate-500">{{ g.max_marks.label }}</label>
+                {{ g.max_marks }}
+                {% for error in g.max_marks.errors %}<p class="mt-1 text-sm font-medium text-[#E63946]" role="alert">{{ error }}</p>{% endfor %}
+              </div>
+            </div>
+
+            <p data-range-warning class="mt-2 hidden text-xs font-semibold text-[#E63946]">⚠ Marks cannot exceed the maximum — the score has been clamped.</p>
+            <p data-dup-warning class="mt-2 hidden text-xs font-semibold text-[#E63946]">⚠ This subject is already recorded in another block.</p>
+
+            <div data-pct-bar-track class="mt-3 hidden h-1.5 w-full overflow-hidden rounded-full bg-slate-200/70">
+              <div data-pct-bar class="h-full rounded-full bg-[#36827F] transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </fieldset>
         {% endfor %}
       </div>
+
+      <button type="button" id="add-subject"
+              class="mt-5 inline-flex items-center gap-2 rounded-full border-2 border-dashed border-[#36827F]/40 px-5 py-2.5 text-sm font-bold text-[#36827F] transition hover:border-[#36827F] hover:bg-[#36827F]/5">
+        + Add subject
+      </button>
+
+      {# ---------- Overall average preview ---------- #}
+      <div class="mt-6 rounded-2xl border border-[#36827F]/20 bg-gradient-to-r from-[#36827F]/10 to-[#F2E5D7]/40 p-5">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Overall average</p>
+            <p class="mt-0.5 text-sm text-slate-500">Unweighted mean of each subject's percentage</p>
+          </div>
+          <span class="text-3xl font-black text-[#36827F]"><span data-overall-value>—</span></span>
+        </div>
+        <div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/70">
+          <div data-overall-bar class="h-full rounded-full bg-[#36827F] transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+
+      {# ---------- Teacher notes ---------- #}
+      <div class="mt-8">
+        <label class="block text-sm font-semibold text-[#262322]">{{ form.tutor_notes.label }}</label>
+        {{ form.tutor_notes }}
+        {% for error in form.tutor_notes.errors %}<p class="mt-1 text-sm font-medium text-[#E63946]" role="alert">{{ error }}</p>{% endfor %}
+      </div>
+
       <div class="mt-7 flex items-center gap-3">
         <button class="rounded-full bg-[#36827F] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#2a5f5d]">
           Save assessment
@@ -27,4 +135,199 @@
       </div>
     </form>
   </div>
+
+<script>
+    (function () {
+      const blocks = Array.from(document.querySelectorAll(".subject-block"));
+      const addBtn = document.getElementById("add-subject");
+      const copyLevelBtn = document.querySelector("[data-copy-level]");
+      const copySubjectBtn = document.querySelector("[data-copy-subject]");
+      const PILL = {
+        emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
+        amber: "border-amber-200 bg-amber-50 text-amber-700",
+        rose: "border-rose-200 bg-rose-50 text-rose-700",
+        none: "border-[#36827F]/30 bg-[#36827F]/10 text-[#36827F]",
+      };
+      const BAR = { emerald: "bg-emerald-500", amber: "bg-amber-500", rose: "bg-rose-500", none: "bg-[#36827F]" };
+
+      function colour(p) {
+        if (p >= 80) return "emerald";
+        if (p >= 60) return "amber";
+        return "rose";
+      }
+
+      function inputsOf(block) {
+        const idx = block.dataset.index;
+        return {
+          year_group: block.querySelector('select[name="year_group_' + idx + '"]'),
+          subject: block.querySelector('select[name="subject_' + idx + '"]'),
+          marks: block.querySelector('input[name="marks_' + idx + '"]'),
+          max: block.querySelector('input[name="max_marks_' + idx + '"]'),
+        };
+      }
+
+      function pctOf(block) {
+        const { marks, max } = inputsOf(block);
+        const m = marks && marks.value !== "" ? Number(marks.value) : NaN;
+        const x = max && max.value !== "" ? Number(max.value) : NaN;
+        if (Number.isNaN(m) || m < 0) return null;
+        if (!Number.isNaN(x) && x > 0) return (m / x) * 100;
+        return m;
+      }
+
+      function overMax(block) {
+        const { marks, max } = inputsOf(block);
+        const m = marks && marks.value !== "" ? Number(marks.value) : NaN;
+        const x = max && max.value !== "" ? Number(max.value) : NaN;
+        return !Number.isNaN(m) && !Number.isNaN(x) && x > 0 && m > x;
+      }
+
+      function dupSubject(block) {
+        const { subject } = inputsOf(block);
+        if (!subject || !subject.value) return false;
+        return blocks.some((other) => {
+          if (other === block || other.classList.contains("hidden")) return false;
+          const o = inputsOf(other);
+          return o.subject && o.subject.value === subject.value;
+        });
+      }
+
+      function renderBlock(block) {
+        const p = pctOf(block);
+        const pill = block.querySelector("[data-pct-pill]");
+        const track = block.querySelector("[data-pct-bar-track]");
+        const bar = block.querySelector("[data-pct-bar]");
+        const label = block.querySelector("[data-pct-label]");
+        const rangeWarn = block.querySelector("[data-range-warning]");
+        const dupWarn = block.querySelector("[data-dup-warning]");
+        if (p === null) {
+          pill.classList.add("hidden");
+          track.classList.add("hidden");
+        } else {
+          const c = Math.max(0, Math.min(100, p));
+          const key = colour(c);
+          pill.classList.remove("hidden");
+          track.classList.remove("hidden");
+          label.textContent = Math.round(p) + "%";
+          bar.style.width = c + "%";
+          pill.className = "rounded-full border px-3 py-1 text-sm font-black " + PILL[key];
+          bar.className = "h-full rounded-full transition-all duration-300 " + BAR[key];
+        }
+        rangeWarn.classList.toggle("hidden", !overMax(block));
+        dupWarn.classList.toggle("hidden", !dupSubject(block));
+      }
+
+      function renderOverall() {
+        const pcts = blocks
+          .filter((b) => !b.classList.contains("hidden"))
+          .map(pctOf)
+          .filter((p) => p !== null);
+        const valueEl = document.querySelector("[data-overall-value]");
+        const barEl = document.querySelector("[data-overall-bar]");
+        if (pcts.length === 0) {
+          valueEl.textContent = "—";
+          barEl.style.width = "0%";
+          barEl.className = "h-full rounded-full bg-[#36827F] transition-all duration-300";
+        } else {
+          const avg = pcts.reduce((a, b) => a + b, 0) / pcts.length;
+          const c = Math.max(0, Math.min(100, avg));
+          const key = colour(avg);
+          valueEl.textContent = Math.round(avg) + "%";
+          barEl.style.width = c + "%";
+          barEl.className = "h-full rounded-full transition-all duration-300 " + BAR[key];
+        }
+      }
+
+      function renderAll() {
+        blocks.forEach(renderBlock);
+        renderOverall();
+      }
+
+      function refreshAdd() {
+        const hidden = blocks.filter((b) => b.classList.contains("hidden")).length;
+        const shown = blocks.length - hidden;
+        addBtn.disabled = hidden === 0;
+        addBtn.classList.toggle("opacity-40", hidden === 0);
+        addBtn.classList.toggle("cursor-not-allowed", hidden === 0);
+        addBtn.textContent = hidden === 0 ? "Maximum subjects reached" : "+ Add subject";
+        document.querySelector("[data-subject-count]").textContent = shown;
+        const anyShown = shown > 0;
+        copyLevelBtn.classList.toggle("hidden", !anyShown);
+        copyLevelBtn.classList.toggle("inline-flex", anyShown);
+        copySubjectBtn.classList.toggle("hidden", !anyShown);
+        copySubjectBtn.classList.toggle("inline-flex", anyShown);
+      }
+
+      function visibleBlocks() {
+        return blocks.filter((b) => !b.classList.contains("hidden"));
+      }
+
+      function focusFirstEmpty(block) {
+        const { year_group, subject, marks } = inputsOf(block);
+        if (year_group && !year_group.value) return year_group.focus();
+        if (subject && !subject.value) return subject.focus();
+        if (marks && marks.value === "") return marks.focus();
+      }
+
+      addBtn.addEventListener("click", () => {
+        const next = blocks.find((b) => b.classList.contains("hidden"));
+        if (next) {
+          next.classList.remove("hidden");
+          refreshAdd();
+          renderAll();
+          focusFirstEmpty(next);
+        }
+      });
+
+      copyLevelBtn.addEventListener("click", () => {
+        const shown = visibleBlocks();
+        const src = shown[0];
+        if (!src) return;
+        const val = inputsOf(src).year_group.value;
+        shown.forEach((b) => {
+          const { year_group } = inputsOf(b);
+          if (year_group) year_group.value = val;
+        });
+        renderAll();
+        inputsOf(shown[0]).year_group.focus();
+      });
+
+      copySubjectBtn.addEventListener("click", () => {
+        const shown = visibleBlocks();
+        const src = shown[0];
+        if (!src) return;
+        const val = inputsOf(src).subject.value;
+        shown.forEach((b) => {
+          const { subject } = inputsOf(b);
+          if (subject) subject.value = val;
+        });
+        renderAll();
+        inputsOf(shown[0]).subject.focus();
+      });
+
+      blocks.forEach((block) => {
+        block.querySelector("[data-remove]").addEventListener("click", () => {
+          block.classList.add("hidden");
+          block.querySelectorAll("select").forEach((el) => { el.selectedIndex = 0; });
+          block.querySelectorAll("input[type=number]").forEach((el) => { el.value = ""; });
+          block.querySelector("[data-pct-pill]").classList.add("hidden");
+          block.querySelector("[data-pct-bar-track]").classList.add("hidden");
+          block.querySelector("[data-range-warning]").classList.add("hidden");
+          block.querySelector("[data-dup-warning]").classList.add("hidden");
+          refreshAdd();
+          renderAll();
+          const next = block.previousElementSibling;
+          if (next && next.classList && next.classList.contains("subject-block")) {
+            focusFirstEmpty(next);
+          }
+        });
+        const { year_group, subject, marks, max } = inputsOf(block);
+        [year_group, subject, marks, max].forEach((el) => el && el.addEventListener("input", renderAll));
+        [year_group, subject, marks, max].forEach((el) => el && el.addEventListener("change", renderAll));
+      });
+
+      refreshAdd();
+      renderAll();
+    })();
+  </script>
 {% endblock %}
